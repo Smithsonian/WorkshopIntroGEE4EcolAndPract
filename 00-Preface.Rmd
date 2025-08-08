@@ -1,0 +1,178 @@
+---
+title: "Introduction to Google Earth Engine for Ecologists and Practitioners"
+author: "Ramiro D Crego, Jared Stabach, Grant Connette"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+always_allow_html: true
+output:
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float: 
+      collapsed: true
+      smooth_scroll: true
+    number_sections: true
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+---
+
+<a href="https://nationalzoo.si.edu/conservation" 
+   class="personal-logo-corner" 
+   aria-label="Visit my site">
+  <img src="https://siarchives.si.edu/sites/default/files/blog-attached-images/SI_large_color.jpg" 
+       alt="My Logo" 
+       style="width:64px; height:70px; position:fixed; top:30px; right:20px; border:0; z-index:1000;">
+</a>
+
+<style>
+.personal-logo-corner img {
+  transition: transform 0.3s ease;
+}
+.personal-logo-corner img:hover {
+  transform: scale(1.1) rotate(5deg);
+}
+</style>
+
+<center>
+
+<figure>
+<img src="Featured.JPG" style="width:100.0%" />
+</figure>
+
+</center>
+
+## Preface
+
+Google Earth Engine is a cloud-based platform hosted by Google that uses
+Google’s high-performance and intrinsically parallel computing system
+that subdivides computations across the Google computational
+infrastructure, accelerating computational processes (Gorelick et al.,
+2017). It has been primarily designed to process and analyze satellite
+imagery and geospatial datasets, making computationally demanding
+workflows more accessible for research, education and other nonprofit
+use at no user cost. Thus, it is totally free.
+
+Up to 2008, using satellite imagery for data analysis was expensive. In
+2008, however, the United States Geological Survey (USGS) opted for a
+free and open policy on the use of the most popular satellite, Landsat
+(Woodcock et al., 2008). The release of Landsat catalog to be freely use
+by the public opened enormously the possibilities to expand earth
+research (Woulder et al., 2019). However, with so much data available,
+the limitation became data processing rather than data gathering.
+Personal computers are generally limited in computation power to analyze
+the amount of data that a composite of Landsat images require and data
+storage is also limited. Supercomputers can do that job, but access them
+is only optional for researchers working in certain institutions. Google
+opened the option for all users with internet access to operate on a
+high computing infrastructure through the new platform, Google Earth
+Engine.
+
+When the increase of satellite data accessibility is combined with free
+access to fast computing processes, researchers and students have the
+possibility to carry out extremely high computing demanding projects in
+matter of minutes. For ecologists, this has opened the horizons of
+research possibilities in unthinkable ways. And while lot of attention
+has been put into the use of Google Earth Engine for remote sensing
+scientists (Tamimina et al., 2020), the tool has not reached yet the
+spatial ecological field in its full capacity. In this tutorial, we explore
+the different applications that this platform provides to analyze data
+for projects focused on spatial ecology.
+
+### Goals
+
+This workshop is intended to provide an introduction to GEE for participants 
+in the fields of ecology, conservation, and wildlife biology. The course will 
+begin by covering the basics of GEE and JavaScript coding before moving on to 
+spatial data manipulation and analyses. Participants need no prior experience 
+working with GEE, but should have a basic understanding of GIS data and concepts, 
+such as raster (including stacks or multi-band images), vectors, projections, and spatial resolution. This course is a continuation of a previous year’s module “Introduction to Geographic Information Systems (GIS) and Wildlife Population Monitoring in R.” At the conclusion of the course, we will combine GEE workflows with population analysis in R, with a goal of creating a community of practitioners that have the skills necessary to expand upon science-based monitoring of wildlife populations across Kenya.
+
+### Learning Outcomes
+You are expected to use your own computer for all exercises. By the end of 
+this course, you will be able to:
+
+ * Understand GEE’s web interface
+ * Access and manipulate spatial data from the GEE catalog
+ * Understand the fundamentals of JavaScript code
+ * Perform basic spatial data processing (i.e., standard GIS operations)
+ * Gain experience with species distribution modeling (i.e., random forest, MaxEnt)
+ * Download GEE data to incorporate in R workflows to assess species abundance
+ * Use R to create maps and visualize data
+ * Make maps that show predictions based on statistical models
+
+### How to use this material
+
+Here we present a tutorial that will guide you on the use of different
+model techniques for data analysis. The main goal is that after the workshop, you will be able to continue practicing with this tutorial, and master your skills to analyze your data using Google Earth Engine interface.
+
+The tutorial is organized in 5 main sections. Section 1 is an
+introduction to Google Earth Engine and the JavaScript language we use
+to code. Section 2 will guide you on the use of images and geometries,
+or raster and vector data. Section 3 is an opportunity to lonk GEE with other 
+interfaces like R to make visualizations of your data. Section 4 is an introduction 
+to the implementation of Species Distribution Models with GEE. Section 5 will
+bring us back to Distance Sampling and the use of covariables extracted with GEE in
+the modeling process.
+
+> All that code is available [here](https://code.earthengine.google.com/?accept_repo=users/jaredstabach/NASA_EcoCons_Mara).
+
+### Instructors
+
+- Jared Stabach, PhD., Ecologist, Conservation Ecology Center, Smithsonian’s National
+Zoo and Conservation Biology Institute, Front Royal, VA, USA. Email: stabachj@si.edu
+
+- Grant Connette, Ph.D., Ecologist, Conservation Ecology Center, Smithsonian’s National
+Zoo and Conservation Biology Institute, Front Royal, VA, USA. Email: connetteg@si.edu
+
+- Ramiro D Crego, Ph.D., Lecturer in Zoology/Animal Ecology, School of Biological, Earth
+& Environmental Sciences - Environmental Research Institute, University College Cork,
+Ireland. Email: rcrego@ucc.ie
+
+### References
+
+Gorelick, N., Hancher, M., Dixon, M., Ilyushchenko, S., Thau, D., &
+Moore, R. (2017). Google Earth Engine: Planetary-scale geospatial
+analysis for everyone. Remote Sensing of Environment, 202, 18–27.
+<https://doi.org/10.1016/j.rse.2017.06.031>
+
+C.E. Woodcock, R. Allen, M. Anderson, A. Belward, R. Bindschadler, W.
+Cohen, F. Gao, S.N. Goward, D. Helder, E. Helmer, R. Nemani, L.
+Oreopoulos, J. Schott, P.S. Thenkabail, E.F. Vermote, J. Vogelmann,
+M.A. Wulder, R. Wynne. 2008. Free access to Landsat imagery. Science,
+302 (5879), p. 1011
+
+Michael A. Wulder, Thomas R. Loveland, David P. Roy, Christopher J.
+Crawford, Jeffrey G. Masek, Curtis E. Woodcock, Richard G. Allen, Martha
+C. Anderson, Alan S. Belward, Warren B. Cohen, John Dwyer, Angela Erb,
+Feng Gao, Patrick Griffiths, Dennis Helder, Txomin Hermosilla, James D.
+Hipple, Patrick Hostert, M. Joseph Hughes, Justin Huntington, David M.
+Johnson, Robert Kennedy, Ayse Kilic, Zhan Li, Leo Lymburner, Joel
+McCorkel, Nima Pahlevan, Theodore A. Scambos, Crystal Schaaf, John R.
+Schott, Yongwei Sheng, James Storey, Eric Vermote, James Vogelmann,
+Joanne C. White, Randolph H. Wynne, Zhe Zhu. 2019. Current status of
+Landsat program, science, and applications, Remote Sensing of
+Environment, 225, 127-147, <https://doi.org/10.1016/j.rse.2019.02.015>.
+
+Haifa Tamiminia, Bahram Salehi, Masoud Mahdianpari, Lindi Quackenbush,
+Sarina Adeli, Brian Brisco. 2020. Google Earth Engine for geo-big data
+applications: A meta-analysis and systematic review. ISPRS Journal of
+Photogrammetry and Remote Sensing, 164, 152-170,
+<https://doi.org/10.1016/j.isprsjprs.2020.04.001>.
+
+
+```{r child = '01-IntroductionToGEE.Rmd'}
+```
+
+```{r child = '02-DataManagement.Rmd'}
+```
+
+<!-- ```{r child = '03-GGplot2.Rmd'} -->
+<!-- ``` -->
+
+<!-- ```{r child = '04-IntroductionToGIS.Rmd'} -->
+<!-- ``` -->
+
+<!-- ```{r child = '05-Addax_DistributionModel.Rmd'} -->
+<!-- ``` -->
