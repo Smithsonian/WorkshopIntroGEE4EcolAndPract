@@ -61,6 +61,7 @@ script.</figcaption>
 
 </center>
 
+
 As you may recall from the introductory section, you can also create new
 repositories and folders to keep your work organized and share them with
 collaborators.
@@ -103,6 +104,7 @@ the study area</figcaption>
 </figure>
 
 </center>
+
 
 You can rename the geometry and save it as a new object using code:
 
@@ -150,6 +152,7 @@ description.</figcaption>
 </figure>
 
 </center>
+
 
 The function `ee.Image()` allows you to import image catalogs. To import
 the elevation data, we need to provide the directory to the data within
@@ -213,6 +216,7 @@ ee.Algorithms.Terrains description in the Docs tab.</figcaption>
 
 </center>
 
+
 This exercise shows you the versatility and power of conducting spatial
 analysis on GEE. You can in matters of seconds, download elevation data
 and calculate slope, aspect and hillshade for the entire world!
@@ -231,7 +235,7 @@ var Terrain = Terrain.clip(Bounds);
     
 You have now an image object cropped to the area of interest.
 
-### Displaying data on the map
+#### Displaying data on the map
 
 Often, you will be interested in visualizing the images. To display the
 elevation data on the map, you can use the function `Map.addLayer()`. To
@@ -271,6 +275,8 @@ Map.addLayers function.</figcaption>
 </figure>
 
 </center>
+
+
 
 ```{js, eval=F}
 Map.addLayer(Elev, {min: 0, max: 3000}, 'DEM', 1);
@@ -440,6 +446,7 @@ applying a median reducer.</figcaption>
 
 </center>
 
+
 Instead of using the reducer, you can use the built-in function
 `median()` that will do the same operation on each pixel across the
 stack of all matching bands but retain the original band names.
@@ -576,6 +583,7 @@ alt="Figure 7. Masking process." />
 </figure>
 
 </center>
+
 
 To do this, we will use a surface water product. We will first select the band 
 `max_extent` which is a binary image containing 1 anywhere water has ever been detected.
@@ -715,7 +723,7 @@ Finally, lets filter the dataset to retain only the Masai Mara reserve boundary.
 var Mara = PA_filtered.filter(ee.Filter.eq('NAME', 'Masai Mara'));
 ```
 
-### Mapping functions over feature collections
+#### Mapping functions over feature collections
 
 Similar to what we learned about mapping functions over image
 collections, we can do it on feature collections. Let’s say you are
@@ -861,7 +869,7 @@ Export.image.toAsset({
 There are other optional arguments that can be modified. Look into the
 Export of the Docs tab to explore other arguments.
 
-### Exporting a feature collection and tables
+#### Exporting a feature collection and tables
 
 Similar to images, we can export feature collections or tabular data,
 such as a future collection with no geometry, as CSV, ESRI Shapefile
@@ -929,6 +937,7 @@ features.</figcaption>
 
 </center>
 
+
 You will see the csv file in your Google Drive (Fig. 9).
 
 <center>
@@ -941,6 +950,7 @@ area of Marine National Parks.</figcaption>
 </figure>
 
 </center>
+
 
 ### Conclusion
 
