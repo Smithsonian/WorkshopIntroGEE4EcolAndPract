@@ -1,6 +1,6 @@
 ---
 title: "Introduction to Google Earth Engine for Ecologists and Practitioners"
-author: "Ramiro D Crego, Jared Stabach, Grant Connette"
+author: "Ramiro D Crego, Grant Connette, Jared Stabach"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 always_allow_html: true
 output:
@@ -161,6 +161,7 @@ applications: A meta-analysis and systematic review. ISPRS Journal of
 Photogrammetry and Remote Sensing, 164, 152-170,
 <https://doi.org/10.1016/j.isprsjprs.2020.04.001>.
 
+---
 
 ```{r child = '01-IntroductionToGEE.Rmd'}
 ```

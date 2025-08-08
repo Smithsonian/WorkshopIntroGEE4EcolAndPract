@@ -563,8 +563,8 @@ applying `image1.mask(image2)`, the values of image2 are taken and used
 as a mask of image 1, meaning that pixels in image2 that have the value
 0 will be made transparent in image1.
 
-Continuing with our example, we may be interested in removing all the
-ocean water from the NDVI image. We need to create a mask that will
+Continuing with our example, we may be interested in removing all the 
+water from the NDVI image. We need to create a mask that will
 retain only the land pixels (Fig. 7).
 
 <center>
@@ -577,23 +577,20 @@ alt="Figure 7. Masking process." />
 
 </center>
 
-Using the elevation data, we can use the function `gt()` (grater than)
-to create a binary image with a value of 1 for all pixels with
-elevations greater than 0, and a value of 0 to pixels with values lower
-than 0. Then we use the function `updateMask()` to retain only NDVI
-values from the land (i.e., elevation &gt; 0).
+To do this, we will use a surface water product. We will first select the band 
+`max_extent` which is a binary image containing 1 anywhere water has ever been detected.
+We can use the function `eq()` (equal) to create a binary image with a value of 1 for all pixels with permanent water (pixel values equal to 1), and a value of 0 to pixels with no water. Then we use the function `updateMask()` to retain only NDVI values from the land.
 
 ```{js, eval=F}
+// Create a land mask using surface water dataset.
+var watermask =  ee.Image('JRC/GSW1_4/GlobalSurfaceWater').select('max_extent').eq(0);
 
+// Update NDVI mask with the land mask.
+var maskedndvi_1 = ndvi_1.updateMask(watermask);
+
+// Display the masked result.
+Map.addLayer(maskedndvi_1, {min:0, max:1}, 'NDVI masked');
 ```
-    // Create a land mask using SRTM elevation data.
-    var watermask =  ee.Image("USGS/SRTMGL1_003").gt(0);
-
-    // Update NDVI mask with the land mask.
-    var maskedndvi_1 = ndvi_1.updateMask(watermask);
-
-    // Display the masked result.
-    Map.addLayer(maskedndvi_1, {min:0, max:1}, 'NDVI masked');
 
 Masks can be particularly useful in cases where you cannot find images
 that are cloud free and you need to mask those pixels for analysis. 
@@ -619,11 +616,10 @@ coordinates, indicating the vertices of the polygon. Check that the
 first and last coordinates are the same.
 
 ```{js, eval=F}
-
+var polygon = ee.Geometry.Polygon([
+  [[34.20, -2.46], [41.63, -2.46], [41.63, 4.07], [34.20, 4.07], [34.20, -2.46]]
+]);
 ```
-    var polygon = ee.Geometry.Polygon([
-      [[97.58, 9.32], [100.43, 9.32], [100.43, 14.43], [97.58, 14.43], [97.58, 9.32]]
-    ]);
 
 Geometries can then be converted into features. A **Feature** is an
 object with a geometry property storing a **Geometry** object (or null)
@@ -632,9 +628,10 @@ create a feature, you need to provide a geometry, but also a dictionary
 with other properties of interest.
 
 ```{js, eval=F}
+var polyFeature = ee.Feature(polygon, {Area: 'Kanya'});
 
 ```
-    var polyFeature = ee.Feature(polygon, {Area: 'Tanintharyi'});
+
 
 **Geometry** and **Feature** objects can be printed or added to the map
 similarly to images using `Map.addLayer()`. The default visualization
@@ -642,11 +639,10 @@ parameters will display vectors with solid black lines and semi-opaque
 black fill. You can change the colors similarly to images.
 
 ```{js, eval=F}
-
+print(polyFeature);
+Map.addLayer(polyFeature, {}, 'Study area');
+Map.addLayer(polyFeature, {color: 'red'}, 'Study area - red');
 ```
-    print(polyFeature);
-    Map.addLayer(polyFeature, {}, 'Study area');
-    Map.addLayer(polyFeature, {color: 'red'}, 'Study area - red');
 
 #### Feature collections
 
@@ -658,20 +654,18 @@ with its coordinate (the geometry) and a dictionary with the name of the
 town. We can then combine all the town into a feature collection.
 
 ```{js, eval=F}
+// Make a list of Features
+var feature_list = [
+  ee.Feature(ee.Geometry.Point(36.07,-0.29), {name: 'Nakuru'}),
+  ee.Feature(ee.Geometry.Point(36.82,-1.29), {name: 'Nairobi'})
+];
 
+// Create a FeatureCollection from the list, print it and display it on the map
+var Towns = ee.FeatureCollection(feature_list);
+print(Towns);
+Map.addLayer(Towns, {color: 'blue'}, 'Towns');
 ```
-    // Make a list of Features
-    var feature_list = [
-      ee.Feature(ee.Geometry.Point(98.62, 12.44), {name: 'Myeik'}),
-      ee.Feature(ee.Geometry.Point(98.76, 11.25), {name: 'Bokpyin'}),
-      ee.Feature(ee.Geometry.Point(98.52, 13.39), {name: 'Pe Det'})
-    ];
-
-    // Create a FeatureCollection from the list, print it and display it on the map
-    var Towns = ee.FeatureCollection(feature_list);
-    print(Towns);
-    Map.addLayer(Towns, {color: 'blue'}, 'Towns');
-
+    
 Google Earth Engine offers several **Feature collections** through the
 Data Catalog that can be imported. They are mostly data sets for the USA
 but, in addition to the protected areas we used, there are also country
@@ -688,39 +682,44 @@ study area, similarly to what we did before to filter the Landsat image
 collection.
 
 ```{js, eval=F}
+// Load a FeatureCollection of World Database on Protected Areas.
+var PA = ee.FeatureCollection('WCMC/WDPA/current/polygons');
 
+// Filter the ecoregions to the study area
+var PA_filtered = PA.filterBounds(Bounds);
 ```
-    var PA = ee.FeatureCollection('WCMC/WDPA/current/polygons');
-
-    var PA_filtered = PA.filterBounds(Bounds);
 
 You can now check how many protected areas are within the study area by
 using `size()` which returns the number of entries in a dictionary.
 
 ```{js, eval=F}
-
+print('Count after filter:', PA_filtered.size());
 ```
-    print('Count after filter:', PA_filtered.size());
-
-Now, let’s filter the protected areas on our study area that are Marine
-National Parks. We can use the `ee.Filter.eq()` (eq for equal) function
-to retain only those protected areas designated as Marine National Park
-and check how many there are. As with the `filterMetadata`, you need to
-provide the property name of the feature to filter on and the value to
-compare against.
+    
+Now, let’s filter the protected areas on our study area that are IUCN category I and II. 
+We can use the `ee.Filter.inList()` function to retain only those protected areas designated as IUCN Category I and II and check how many there are. For the `ee.Filter.inList()` function, we need to pass two arguments, the name of the property we want to filter, and a list of names.
 
 ```{js, eval=F}
-
+// Filter to get only IUCN Cat I and II
+var NatParksIUCNIandII = PA_filtered.filter(
+  ee.Filter.inList('IUCN_CAT', ['I','II'])
+  );
+  
+// Check the number of parks after filtering
+print('Number of IUCN Cat I and II Parks:', NatParksIUCNIandII.size());
 ```
-    var MarineNatParks = PA_filtered.filter(ee.Filter.eq('DESIG', 'Marine National Park'));
 
-    print('Number of Marine National Parks:', MarineNatParks.size());
+Finally, lets filter the dataset to retain only the Masai Mara reserve boundary. Here, we will use the `ee.Filter.eq()` (eq for equal) function. As before, you need to provide the property name of the feature to filter on and the value to compare against.
+
+```{js, eval=F}
+var Mara = PA_filtered.filter(ee.Filter.eq('NAME', 'Masai Mara'));
+```
 
 ### Mapping functions over feature collections
 
 Similar to what we learned about mapping functions over image
 collections, we can do it on feature collections. Let’s say you are
-interested in calculating the area of each Marine National Park. We will
+interested in calculating the area of each filtered National Park. We will
 do this as an exercise even though the Protected Area database already
 has a property with the area of each feature.
 
@@ -730,20 +729,17 @@ calculates the area using the `area()` function. We then divide this by
 to each feature as a new property that we called areakm2.
 
 Second, we map the `addArea` function we created across the
-**MarineNatParks** feature collection.
+**NatParksIUCNIandII** feature collection.
 
 ```{js, eval=F}
+// Function to compute patch area and perimeter and add it as a property
+var addArea = function(feature) {
+  return feature.set({areakm2: feature.area().divide(1000 * 1000)});
+};
 
+// Map the area using the function over the FeatureCollection
+var Area = NatParksIUCNIandII.map(addArea);
 ```
-    // Compute the area of each National Park in km2
-
-    // Function to compute patch area and perimeter and add it as a property
-    var addArea = function(feature) {
-      return feature.set({areakm2: feature.area().divide(1000 * 1000)});
-    };
-
-    // Map the area using the function over the FeatureCollection
-    var Area = MarineNatParks.map(addArea);
 
 #### Reducing feature collections
 
@@ -753,14 +749,14 @@ use the `reduceColumns()` function on the Area feature collection
 previously created. We need to specify the reducer we want to apply, in
 this case the `ee.Reducer.mean()`, and the property or list of
 properties we want to reduce, in this case `areakm2`. When printing this
-object we have a new property with the mean area of all National Parks
+object we have a new property with the mean area of all Protected Areas
 in the collection.
 
 ```{js, eval=F}
-
+// Calculate the mean area across parks
+print('Park area (km2):', Area.reduceColumns(ee.Reducer.mean(), ['areakm2']));
 ```
-    // Calculate the mean area across parks
-    print('Mean National Park area (km2):', Area.reduceColumns(ee.Reducer.mean(), ['areakm2']));
+
 
 #### Displaying fature and feature collections on the map
 
@@ -769,11 +765,13 @@ on the map. We use the same function than more images,
 `Map.addLayers()`.
 
 ```{js, eval=F}
-
+// Display them with a custom color
+Map.addLayer(PA_filtered, {color: 'green'}, 'Protected Areas');
+Map.addLayer(NatParksIUCNIandII, {color: 'blue'}, 'IUCN I & II'); 
+Map.addLayer(Mara, {color: 'red'}, 'Masai Mara');
 ```
-    Map.addLayer(PA_filtered, {color: 'green'}, 'Protected Areas');
-    Map.addLayer(MarineNatParks, {color: 'blue'}, 'Marine NP'); 
-
+   
+   
 ### Exporting resuts
 
 Lastly, at the end of an analysis you may want to export your results
@@ -828,19 +826,17 @@ used when exporting data to use in other GIS software.
 Here is the code:
 
 ```{js, eval=F}
-
+// Export raster image to Google Drive
+Export.image.toDrive({
+  image: maskedndvi_1,  // Export the masked NDVI as an example
+  region: Bounds,
+  description: 'NDVI-30m',
+  folder: 'GIS',
+  scale: 30,
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e10
+});
 ```
-    // Export raster images to Google Drive
-    Export.image.toDrive({
-      image: maskedndvi_1,  // Export the masked NDVI as an example
-      region: Bounds,
-      description: 'NDVI-30m',
-      folder: 'GIS',
-      scale: 30,
-      fileFormat: 'GeoTIFF',
-      maxPixels: 1e10,
-      crs: 'EPSG:4326'
-    });
 
 In other cases, you may be interested in saving an image as an asset, so
 you can use it later in other analyses. To do this, we will use the
@@ -849,18 +845,18 @@ Google Drive is that we now need to provide an `assetId` as an extra
 parameter and that we do not need to specify a file format anymore.
 
 ```{js, eval=F}
-
+// Export raster image to asset
+Export.image.toAsset({
+  image: maskedndvi_1,  // Export the masked NDVI as an example
+  region: Bounds,
+  description: 'NDVI-30m',
+  assetId: 'NDVI30mExport',
+  scale: 30,
+  maxPixels: 1e10,
+  crs: 'EPSG:4326'
+});
 ```
-    // Export raster image to asset
-    Export.image.toAsset({
-      image: maskedndvi_1,  // Export the masked NDVI as an example
-      region: Bounds,
-      description: 'NDVI-30m',
-      assetId: 'NDVI30mExport',
-      scale: 30,
-      maxPixels: 1e10,
-      crs: 'EPSG:4326'
-    });
+
 
 There are other optional arguments that can be modified. Look into the
 Export of the Docs tab to explore other arguments.
@@ -881,33 +877,24 @@ Here we will export the marine national parks (the object
 **MarineNatParks**) as a shapefile and also save it as an asset.
 
 ```{js, eval=F}
+// Export feature to Google Drive
+Export.table.toDrive({
+  collection: NatParksIUCNIandII,  // Export the marine parks as an example
+  description: 'PAs',
+  fileFormat: 'SHP',
+  folder: 'GIS'
+});
 
+// Export feature to asset
+Export.table.toAsset({
+  collection: NatParksIUCNIandII,  // Export the marine parks as an example
+  description: 'PAs',
+  assetId: 'PAsExport'
+});
 ```
-    // Export feature to Google Drive
-    Export.table.toDrive({
-      collection: MarineNatParks,  // Export the marine parks as an example
-      description: 'Marine_Parks_Tanintharyi',
-      fileFormat: 'SHP',
-      folder: 'GIS'
-    });
 
-    // Export feature to asset
-    Export.table.toAsset({
-      collection: MarineNatParks,  // Export the marine parks as an example
-      description: 'Marine_Parks_Tanintharyi',
-      assetId: 'MarineParksExport'
-    });
 
-    // Export table data
-    Export.table.toDrive({
-      collection: Area,
-      description: 'exportMarineNationalParkArea',
-      fileFormat: 'CSV',
-      folder: 'GIS',
-      selectors: ['areakm2'] //A list of properties to include in the export; either a single string with comma-separated names or a list of strings.
-    });
-
-Finally, we will export the Marine National Park area as table data in a
+Finally, we will export the PA area as table data in a
 CSV format. This object will not have a geometry associated, only the
 area we calculated for each feature. For this we use the
 `Export.table.toDrive()` we used before with the difference that now the
@@ -916,17 +903,16 @@ property we want to export, NAME and areakm2 of each park. You can add
 other properties if wanted.
 
 ```{js, eval=F}
-
+// Export table data
+Export.table.toDrive({
+  collection: Area,
+  description: 'PA_Area',
+  fileFormat: 'CSV',
+  folder: 'GIS',
+  selectors: ['NAME','areakm2'] //A list of properties to include in the export; either a single string with comma-separated names or a list of strings.
+});
 ```
-    // Export table data
-    Export.table.toDrive({
-      collection: Area,
-      description: 'exportMarineNationalParkArea',
-      fileFormat: 'CSV',
-      folder: 'GIS',
-      selectors: ['NAME','areakm2'] //A list of properties to include in the export; either a single string with comma-separated names or a list of strings.
-    });
-
+ 
 Note that to complete the export process you need to submit the task by
 clicking the `run` button on the Tasks tab on the right panel (Fig. 8).
 When the process is completed, the taks changes to a blue color as shown
@@ -935,7 +921,7 @@ in Fig. 8.
 <center>
 
 <figure>
-<img src="FigCh2/Figure8.png" style="width:60.0%"
+<img src="FigCh2/Figure8.JPG" style="width:60.0%"
 alt="Figure 8. Exporting images and features." />
 <figcaption aria-hidden="true">Figure 8. Exporting images and
 features.</figcaption>
@@ -948,7 +934,7 @@ You will see the csv file in your Google Drive (Fig. 9).
 <center>
 
 <figure>
-<img src="FigCh2/Figure9.png" style="width:80.0%"
+<img src="FigCh2/Figure9.JPG" style="width:80.0%"
 alt="Figure 9. CSV file exported with name and area of Marine National Parks." />
 <figcaption aria-hidden="true">Figure 9. CSV file exported with name and
 area of Marine National Parks.</figcaption>
@@ -963,3 +949,30 @@ features. There are an enormous amount of possible operations that can
 be applied to filter collections, calculate new bands, etc. As we
 progress with different types of analyses, you will get more
 familiarized with the different possible operations.
+
+---
+
+### Assignment 2
+
+In this second section, we have covered the basics of image, image collection, feature and feature collection operations in Google Earth Engine. The set of tools we have learned are the building blocks for more complex analyses. Thus, it is important to make sure you are familiar with these operations.
+
+Here are some activities that will help you practice the skills we covered. This assignment consists of four activities with increasing levels of difficulty.
+
+1. [Easy] Filter and display the Masai Mara boundary. You will use this feature for the subsequent activities.
+
+2. [Easy] Select any image dataset from the GEE catalog that we did not use in the training. Export this image as a GeoTIFF to your Google Drive setting the extent for the Masai Mara.
+
+3. [Moderate] Create a time series chart to compare mean NDVI and EVI from the MODIS satellite (Collection Name: MOD13Q1.006 Terra Vegetation Indices 16-Day Global 250m of MODIS) for the Masai Mara. Tip: [Here you can find examples of charts](https://developers.google.com/earth-engine/guides/charts_image_collection#uichartimageseries). You will need to use the `ui.Chart.image.series` function.
+
+4. [Advanced] Load a road dataset for Africa using this feature collection 
+`ee.FeatureCollection("projects/sat-io/open-datasets/GRIP4/Africa");`
+Create a distance to roads image for the entire Masai Mara.
+
+5. [Advanced] Write a function to calculate a Modified Soil Adjusted Vegetation Index band (MSAVI).
+     [https://www.usgs.gov/landsat-missions/landsat-modified-soil-adjusted-vegetation-index](https://www.usgs.gov/landsat-missions/landsat-modified-soil-adjusted-vegetation-index). Map this function across a Landsat 8 collection to add an MSAVI band to each image
+Create a median pixel composite and add this layer to your map window.
+
+Solutions code by clicking [here](https://code.earthengine.google.com/c550161bdb8fa961412d79d715462b32)
+
+
+---

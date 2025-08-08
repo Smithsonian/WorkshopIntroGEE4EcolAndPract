@@ -923,6 +923,8 @@ Joanne C. White, Randolph H. Wynne, Zhe Zhu. 2019. Current status of
 Landsat program, science, and applications, Remote Sensing of
 Environment, 225, 127-147, <https://doi.org/10.1016/j.rse.2019.02.015>.
 
+---
+
 ### Assignment 1
 
 In this introductory module we have covered the very basics of programming in Google Earth Engine. In the next module, we will start processing spatial data like images and features. This assignment is an opportunity to internalize some of the basic JavaScript functions that you will build on as you continue to grow your knowledge of GEE.
@@ -976,3 +978,5 @@ print('Result:', multiplyby2(4));
 ```
 
 6. Save the script for this assignment.
+
+---
