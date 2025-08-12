@@ -710,8 +710,11 @@ We can use the `ee.Filter.inList()` function to retain only those protected area
 ```{js, eval=F}
 // Filter to get only IUCN Cat I and II
 var NatParksIUCNIandII = PA_filtered.filter(
-  ee.Filter.inList('IUCN_CAT', ['I','II'])
-  );
+  ee.Filter.inList('IUCN_CAT', ['Ia','Ib','II'])
+  ); 
+// Ia = strict nature reserve
+// Ib = wilderness area
+// II national park
   
 // Check the number of parks after filtering
 print('Number of IUCN Cat I and II Parks:', NatParksIUCNIandII.size());

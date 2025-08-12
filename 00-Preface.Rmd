@@ -170,8 +170,8 @@ Photogrammetry and Remote Sensing, 164, 152-170,
 ```{r child = '02-DataManagement.Rmd'}
 ```
 
-<!-- ```{r child = '03-GGplot2.Rmd'} -->
-<!-- ``` -->
+```{r child = '03-Practice.Rmd'}
+```
 
 <!-- ```{r child = '04-IntroductionToGIS.Rmd'} -->
 <!-- ``` -->

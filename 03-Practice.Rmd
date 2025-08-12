@@ -1,0 +1,223 @@
+## Exporting data and making a map in R
+
+This third section is intended for you to practice what you have learned and then connect it to R, so we start to bring back things we have learned in the past.
+
+We will first start by learning the basics of making maps in R.
+
+### Creating a map in R
+
+We will now move into R to learn how to make a cool map. 
+
+Before we start, and if you are not using an R project, do not forget to set your working directory
+
+```{r, eval=F}
+setwd("...")
+# don't forget to set the directory to your own data folder!!
+```
+
+### Making pretty maps with R
+
+R  offers the opportunity to create beautiful high quality maps for publication. This saves you from having to export all files to make the final maps in other software, such as ArcGIS or QGIS.
+
+Making maps is like art. Good maps can help enormously with presenting your results to an audience. It takes skills and practice. 
+When combining R powerful data processing with visualization packages, we can move beyond static maps. Here, we will learn the basics for making two type of maps:
+
+1. Static maps
+2. Interactive maps
+
+We will use the 'tmap' package, which is a great new addition to R tools. Tmap is a powerful and flexible package with a concise syntax that is similar to ggplot2 users. It also has the unique capability to generate static and interactive maps using the same code via tmap_mode().
+
+```{r}
+library(tmap)
+library(spData)
+```
+
+Before we start using tmap, remember that you always have the help. Some functions in tmap have lots of arguments that can be edited. We will cover some basics here, hoping that you will explore more options on your own.
+
+#### Static maps - the basics
+
+We will use generic data to demonstrate the basics, and then use some of the data from this chapter to create a publishable map.
+
+Static maps are the most common and traditional outputs from geospatial analysis.
+
+Tmap syntax involves a separation between the input data and the aesthetics for data visualization. Each input dataset can be displayed in many different ways, largely depending on the nature of the data (raster, points, polygons, etc.) 
+
+The dataset we are using here is the world object from the 'spData' package. It contains some variables from the World Bank.
+
+In tmap the basic building block is `tm_shape()`, which creates a tmap-element that defines input data as vector or raster objects. We can then add one or more layer elements such as `tm_fill()`, `tm_borders()`, `tm_dots()`, `tm_raster()`, depending what you want to display.
+
+Here a simple example:
+
+```{r}
+data(world)
+
+# Add fill layer to shape
+tm_shape(world) +
+  tm_fill() 
+# Add border layer to shape
+tm_shape(world) +
+  tm_borders() 
+# Add fill and border layers to shape
+tm_shape(world) +
+  tm_fill() +
+  tm_borders() 
+```
+
+Objects in tmap can be store with names, similar to ggplot, and then called or used as starting point to add more objects.
+
+```{r}
+map1 <- tm_shape(world) +
+  tm_fill() +
+  tm_borders() 
+map1
+```
+
+If we want to add more objects (e.g., another shapefile), we use `+ tm_shape(new_obj)`. When a new shape is added in this way, all subsequent aesthetic functions refer to it, until another new shape is added. This syntax allows the creation of maps with multiple shapes and layers.
+
+```{r}
+tm_shape(world) + 
+    tm_borders() + 
+tm_shape(urban_agglomerations) + 
+    tm_dots(size = "population_millions")
+```
+
+In addition, you can change the aesthetics of the maps using either variable fields (data in your shapefile) or constant values. The most commonly used aesthetics for fill and border layers include color, transparency, line width and line type. In the new version of tmap, we set color for the area of polygons using the `fill` argument and the color of borders using the `col` argument. To add transparency, we use `fill_alpha` and `col_alpha`.
+
+Here some examples on using constant numbers and colors. Note the use of `tmap_arrange` to plot multiple maps.
+
+```{r}
+ma1 = tm_shape(world) + tm_fill(fill = "red")
+ma2 = tm_shape(world) + tm_fill(fill = "red", fill_alpha = 0.3)
+ma3 = tm_shape(world) + tm_borders(col = "blue")
+ma4 = tm_shape(world) + tm_borders(lwd = 3)
+ma5 = tm_shape(world) + tm_borders(lty = 2)
+ma6 = tm_shape(world) + tm_fill(fill = "red", fill_alpha = 0.3) +
+  tm_borders(col = "blue", col_alpha = 0.6, lwd = 3, lty = 2)
+tmap_arrange(ma1, ma2, ma3, ma4, ma5, ma6)
+```
+
+But we can also color the maps based on some variable of interest. You can use the default breaks for continuous variables or define your own. We use the `fill.scale` argument to set the color palette and the number of bins into which numeric variables are categorized. Here, we will use the `brewer.bu_gn` palette that gives different tones of blue. 
+
+You can use palettes from the R package cols4all. Run `cols4all::c4a_gui()` to explore them.
+
+Lets plot population size by country:
+
+```{r, message = F}
+tm_shape(world) + tm_polygons(fill = "pop") #default breaks
+breaks = c(0, 2, 5, 10, 100, 500, 2000) * 1000000 # customized breaks
+tm_shape(world) + tm_polygons(fill = "pop", fill.scale = tm_scale(values = "brewer.bu_gn", breaks = breaks))
+```
+
+Finally, we need to make a good legend. This is controled by the argument `fill.legend` for the fill in which you can control the name, position, orientation, etc. Note that if you want to specify legends for other commands, you will need to use the proper argument (e.g., `lwd.legend`). Check the help to learn more.
+
+```{r, message = F}
+tm_shape(world) + 
+  tm_polygons(fill = "pop", fill.scale = tm_scale(values = "brewer.bu_gn", breaks = breaks), fill.legend = tm_legend(
+    	title = "Population", orientation = "landscape",
+    	position = tm_pos_out("center", "bottom"), frame = FALSE
+    	))
+```
+
+So far we have been editing the objects, but a good map needs other elements in the layout. These include title, scale bar, north arrow, any text, etc. 
+
+Additional elements such as north arrows and scale bars have their own functions: `tm_compass()` and `tm_scalebar()`. Here is an example on how to add the north arrow.
+
+```{r, message = F}
+tm_shape(world) + 
+  tm_polygons(fill = "pop", fill.scale = tm_scale(values = "brewer.bu_gn", breaks = breaks), fill.legend = tm_legend(
+    	title = "Population", orientation = "landscape",
+    	position = tm_pos_out("center", "bottom"), frame = FALSE
+    	)) +
+  tm_compass(position = c("left", "bottom"))
+```
+
+#### Interactive maps
+
+It was cool to make animated maps, but we can now take maps to a new level with interactive maps. The release of the 'leaflet' package in 2015 revolutionized interactive web map creation from within R and a number of packages have built on it since then. 
+
+Here we will learn how to create interactive maps using tmaps. Tmaps has a unique function that allows to display your maps as static or interactive. The only caution is that certain features such as scale bars and north arrows are not displayed or used in interactive mode. It also has some limitations on the legends that can be created. But depending on the purpose, it is worth how much you gain.
+
+All you need to do is switching to view mode, using the command `tmap_mode("view")`.
+
+Lets display one of our previous maps on the interactive mode:
+
+```{r}
+tmap_mode("view")
+tm_shape(world) + tm_polygons(fill = "pop", fill.scale = tm_scale(values = "brewer.bu_gn", breaks = breaks), fill.legend = tm_legend(
+    	title = "Population"))
+```
+
+You can navigate the map and click on each country to query the population size. You can also change the base map displayed. This type of map is displayed in html, and be saved as an html file to share or even to insert in your own website.
+
+### Creating your own high quality map.
+
+#### Exporting an image from GEE
+
+We will start working in GEE, generating an image that shows the date at which each pixel was burnt during the year 2020. 
+
+For this, we will use the dataset: 
+
+This data ...
+
+The code on this section can be found [here](https://code.earthengine.google.com/b1c2e2681df2df0f54db5fcf1116bc70)
+
+
+#### Creating our map in R
+
+First, lets load necessary packages:
+
+```{r, message=FALSE}
+library(sf)
+library(terra)
+library(tidyverse)
+library(tmap)
+```
+
+Now, we need to load the image and Shapefile we exported from GEE. Make sure to move all the files into the directory you are working in. You could set up a `googldrive` package to connect directly R to your repository, but we will keep it simple here. Download the files from your Google drive and move those files into the working directory you are using with R.
+
+Note we use `st_read()` from the `sf` package to read a shapefile, and we use `rast()` from the `terra` package to read a raster file. 
+
+```{r}
+PAs <- st_read("./Data/PAs.shp")
+BurntA <- rast("./Data/BurntAreas.tif")
+```
+
+If you recall, we set all background pixels in the image in GEE to -9999. We need now to transform those values to NAs. We can do a simple plot to ensure the image is what we expect.
+
+```{r}
+BurntA[BurntA == -9999] <- NA
+plot(BurntA)
+```
+
+Now, we have all we need to make a map. We will start with a static map.
+
+```{r}
+tmap_mode("plot")
+
+tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date")) +
+  tm_shape(PAs) + tm_borders(lty = 2) +
+  tm_compass(position = c("right", "top")) +
+  tm_scalebar(position = c("left", "bottom"), width = 14) + tm_layout(frame = FALSE, legend.outside = T, legend.frame = F, legend.title.size = 1, legend.text.size = 0.7) + tm_add_legend(type = c("lines"), fill = c('black'), labels = c("Conservancies"))
+```
+
+And now interactive. 
+
+```{r}
+tmap_mode("view")
+
+tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date")) +
+  tm_shape(PAs) + tm_borders(lty = 2)
+```
+---
+
+### Assignment 3
+
+This activity is intended to practice the skills you have learned so far. What we want you to do now is to spend some time exploring different data sets available in GEE and practicing code. There are so many things to explore. Climatic data, Land Cover products, etc. 
+
+1. [Easy to moderate] Once you have an image that you are happy with, export it to your Google Drive for an area of interest.
+
+2. [Moderate] Using the R code to make a map, try to create a nice map for your data.
+
+3. [Difficult] Go back to GEE and create a set of points within your study area (Same you used to export the image). Export the points as a Shapefile to your Google Drive. Load the Shapefile to R, and extract the pixel values of the previously exported image to each point.
+
+
