@@ -1,991 +1,2073 @@
+---
+date: "2024-02-18"
+summary: Tutorial to implement SDMs in Google Earth Engine
+tags:
+- GEE
+title: Implementation of species distribution models in Google Earth Engine
+---
 
-## Data management in Google Earth Engine
+Ramiro D. Crego 1,2, Jared A. Stabach 1 and Grant Connette 1,2
 
-In this second chapter we will learn how to import, operate and display
-images and features on Google Earth Engine (GEE). This is the basic
-building block for any ecological spatial analysis and with time, this
-set of operations and functions will become a simple habit.
+1.  Smithsonian National Zoo and Conservation Biology Institute,
+    Conservation Ecology Center, 1500 Remount Rd, Front Royal, VA 22630,
+    USA.
 
-In order to learn the basic procedures and functions to work in GEE, we
-will develop a simple example. The idea is that after completing this
-chapter, you will have a basic understanding on how to change the area
-of interest, load and work with different data sets (both, images and
-features) and perform some of the most common functions and operations.
+2.  Working Land and Seascapes, Conservation Commons, Smithsonian
+    Institution, Washington, DC 20013, USA.
 
-This video will guide you through the code of this chapter.
+------------------------------------------------------------------------
 
-**Data Management in GEE**:
-{{< youtube 5alN74QJbqI >}}
+This is a guide for modeling species distributions and habitat
+suitability in Google Earth Engine. This guide is intended to explain
+the details of the Earth Engine code developed for this manuscript.
 
-### Getting started
+<figure><a href="https://onlinelibrary.wiley.com/doi/10.1111/ddi.13491" target="_blank"><img src="./Figures/26.png"/></a></figure>
 
-The first step in any project that involves coding is to start and save
-a script where you can safely keep your work progress. First, using the
-forward slash to comment out code, write a header to your script,
-providing general information such as, your name and a title. Something
-like this:
+We first cover the basics for importing data and setting the main
+arguments used in different functions, such as, grid size and the area
+of interest. We then expand on different modelling workflows using three
+different case studies to demonstrate how to adapt the code workflow for
+different goals.
 
-    /////////////////////////////////
-    // My name
-    // Getting started with GEE
-    /////////////////////////////////
+For information on how to set up a Google Earth Engine account as well
+as user guidelines and tutorials visit:
+<https://developers.google.com/earth-engine/>
 
-You can also comment chunks of code using a slightly different code:
-`/* text */` This can be more handy for when you need to activate and
-deactivate several lines of code at the same time.
+The code found below can also be accessed through the GEE repository for
+this study:
+<https://code.earthengine.google.com/?accept_repo=users/ramirocrego84/SDM_Manuscript>
 
-    /*
-    My name
-    Getting started with GEE
-    */
+If you are new to GEE, I recommend you starting with the tutorial An Introduction to Google Earth Engine for Ecologists and Practitioners. 
 
-You can choose the method that is easier for you.
+This a video tutorial explaining step by step the code forfitting species distribution models in GEE. 
 
-After you completed the header, click on the **New button** on the
-Scripts tab of the left panel. From the dropping menu, chose **File**.
-This will open a window where you can provide a name and chose the
-repository where to save your script. Give scripts proper names. You can
-also provide a brief description of your project if desired. Once you
-have saved the script for the first time, you just need to click
-**Save** (Above the code editor panel) every time you want to save
-updates to the script (Fig. 1).
+**Species Distribution Models in GEE**:
+{{< youtube 54PPKkblAks >}}
 
-<center>
+## General settings for running SDMs in Google Earth Engine
+
+### Importing species location data as an asset
+
+Datasets need to be uploaded as assets in Google Earth Engine. The
+easiest way to do this is by creating a csv file with spatial
+coordinates and any other desired attribute information. Note that you
+can also upload an ESRI Shapefile with the species location data.
+
+Below is an example for uploading the *Bradypus variegatus* data set
+from a `csv` file. Prepare a `csv` file with coordinates in latitude and
+longitude (EPSG:4326). To include a column with date use format
+Year-Month-Day (e.g., 2000-01-30).
 
 <figure>
-<img src="FigCh2/Figure1.JPG" style="width:60.0%"
-alt="Figure 1. Saving a new script." />
-<figcaption aria-hidden="true">Figure 1. Saving a new
-script.</figcaption>
+<img src="./Figures/Fig1.jpg"
+alt="Figure 1. Steps for uploading assets to Google Earth Engine. 1) Click ‘New’ under the Assets tab and then select ‘CSV file (.csv)’. 2) Click ‘SELECT’. 3) Browse and select the file from your computer. 4) Provide a name for the asset and the names of the columns containing coordinates in degrees." />
+<figcaption aria-hidden="true">Figure 1. Steps for uploading assets to
+Google Earth Engine. 1) Click ‘New’ under the Assets tab and then select
+‘CSV file (.csv)’. 2) Click ‘SELECT’. 3) Browse and select the file from
+your computer. 4) Provide a name for the asset and the names of the
+columns containing coordinates in degrees.</figcaption>
 </figure>
 
-</center>
+### Loading and cleaning your species data
 
-As you may recall from the introductory chapter, you can also create new
-repositories and folders to keep your work organized and share them with
-collaborators.
+To import the asset into your active script you can click on the forward
+arrow icon on your asset manager or you can use code to programmatically
+load the data as a new object. We recommend using code to import data.
+To import the asset with your species presence data, use the
+`ee.FeatureCollection()` function and provide the asset ID. For example:
 
-### Defining your study area
+    var Data = ee.FeatureCollection('users/yourfolder/yourdata');
 
-The study area for our example is in south-east Asia, encompassing the
-south of Myanmar and Thailand. We will use this area to learn the basics
-of data manipulation in GEE, but you can pick any place on the globe.
+One important step in modeling species distributions is to limit the
+potential effect of geographic sampling bias on the model output due to
+data aggregation resulting from multiple nearby observations.
 
-To position the map display on the area of interest, we will use the
-function `Map.setCenter()`, for which we need to provide coordinates and
-a zoom level (higher numbers indicate larger scale or more zoomed in).
-You may recall this from the previous chapter.
+We thin the location data to one randomly selected occurrence record per
+pixel at the chosen spatial resolution (the raster pixel or grain size
+of the analysis).
 
-    Map.setCenter({lon:99.2, lat:12.6, zoom:6});
+Here, we will apply a function to remove all points that lay within the
+same raster cell at a given grain size. For this, we first need to
+define the spatial resolution of our study.
 
-The next step is to define a geometry, in this case a rectangle, that
-will represent the study area. Click on the rectangle icon from the
-geometry tools and draw a rectangle that covers the area of interest
-(see Fig. 2). We need to provide a name to the new geometry. Name it
-StudyArea.
+    // Define spatial resolution to work with (m)
+    var GrainSize = 10000; // e.g. 10 km
 
-> Hint: You cannot use spaces for names, so we use capital letters or
-> underscores to differenciate words. At the end, it does not matter
-> what name you use, but it is good to use names for variables that you
-> can recognize.
+Then, we can define a function to remove duplicates and apply it to the
+species data set.
 
-After you finish, the geometry will appear in your imports (top of the
-script editor) as a polygon with four vertices. We will discuss more
-about geometries later in this chapter.
+    function RemoveDuplicates(data){
+      var randomraster = ee.Image.random().reproject('EPSG:4326', null, GrainSize);
+      var randpointvals = randomraster.sampleRegions({collection:ee.FeatureCollection(data), scale: 10, geometries: true});
+      return randpointvals.distinct('random');
+    }
 
-<center>
+    var Data = RemoveDuplicates(Data);
+
+The following figure exemplifies how points are rarefied at a 1 km grain
+size.
 
 <figure>
-<img src="FigCh2/Figure2.JPG" style="width:90.0%"
-alt="Figure 2. Rectangle geometry demarcating the study area" />
-<figcaption aria-hidden="true">Figure 2. Rectangle geometry demarcating
-the study area</figcaption>
+<img src="./Figures/Fig2.png"
+alt="Figure 2. Example of presence point filtering. A) Original dataset; B) Final dataset with only one presence point retained per pixel." />
+<figcaption aria-hidden="true">Figure 2. Example of presence point
+filtering. A) Original dataset; B) Final dataset with only one presence
+point retained per pixel.</figcaption>
 </figure>
 
-</center>
+You can evaluate the number of points before and after removing
+duplicates.
 
-You can rename the geometry and save it as a new object using code:
+    print(ee.FeatureCollection('users/yourfolder/yourimage').size())
+    print(Data.size())
 
-    var Bounds = StudyArea;
+### Define your area of interest for modeling
 
-You have now defined the study area. Later, we will use this polygon to
-clip images and restrict the extent of our analysis.
+The extent of the analysis should be carefully selected and constrained
+to a realistic realm of the species of study, avoiding unrealistic
+extents that can hamper model accuracy and predictions (Guisan et al.,
+2017; Leroy et al., 2018; Sillero et al., 2021).
 
-### Working with images
+There are different ways you can define your area of interest. You can
+directly draw a polygon using the drawing tools in GEE or manually set
+the polygon (e.g., Case Study 2 in this tutorial). Here, we present two
+methods for automating this process.
 
-In GEE, raster data are represented as **Image objects** and are the
-main type of data to work with. All images are composed on one or more
-bands, where each band has a name, data type, scale, mask and
-projection, as well as metadata stored as a set of properties. Let’s
-start working with some simple images.
+If you are interested in working with a specific country or continent,
+you can use the Large Scale International Boundary Polygons data set
+available in GEE catalog.
 
-#### Loading images
+Here an example to select Kenya:
 
-The first step for our workflow is to import an image. Let’s start
-working with a simple image with one band which contains information
-about elevation, also known as Digital Elevation Models.
+    // Load region boundary from data catalog if working at a larger scale
+    var AOI = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('country_co', 'KE'));
 
-Remember from previous chapter that you can search for places, images,
-image collections, and feature collections on the GEE Data Catalog.
+You can see the list of country codes at:
+<https://en.wikipedia.org/wiki/List_of_FIPS_country_codes>
 
-To find the elevation data, on the search bar type: ‘SRTM Digital
-Elevation Data 30m.’ Now, click on it to display the data description
-where you can find information about the temporal availability, data
-provider and collection ID (Fig. 3). This data set corresponds to a
-digital elevation data from the Shuttle Radar Topography Mission (Farr
-et al. 2007) and contains information of elevation at 30m spatial
-resolution. You can click **import** to add it to your imports, or you
-can use code. We encourage you to use code, so you get more familiarized
-with it and also helps you to keep the work organized.
+If you are interested in working within the entire African continent,
+you can use:
 
-<center>
+    // Load country boundary from data catalog if working at a country scale
+    var AOI = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('wld_rgn', 'Africa'));
+
+Another option is to select a bounding box around your species location
+data. For example, we can define a bounding box using the function
+`bounds()` and add a buffer of 50 km.
+
+    // Define the area of interest
+    var AOI = Data.geometry().bounds().buffer(50000);
+
+To display the study area on the map use the following code and assign
+the map layer the name ‘AOI’:
+
+    // Add AOI to the map
+    Map.addLayer(AOI, {}, 'AOI', 1); // The number 1 indicates the zoom level. Higher numbers increases zoom level.
+
+### Selecting predictor variables
+
+One of the main advantages of implementing SDMs in Google Earth Engine
+is to make use of the large number of datasets available as predictor
+variables. This includes not only the bioclimatic variables from Hijmans
+et al. (2005), but elevation data and derivatives (slope, aspect,
+hillside, etc.), diverse vegetation indices, human modification indices,
+nighttime light images, water bodies, hourly climatic data, land cover
+classifications, roads or other infrastructure and even the raw pixel
+values of satellite data. Depending on your area of interest, certain
+regions have greater data availability. GEE also offers the opportunity
+to directly include user-derived datasets in your analysis, such as
+processed satellite imagery (e.g., a land cover classification that you
+previously developed for your area of interest).
+
+Selecting predictor variables is a step in which the researcher needs to
+rely on existing knowledge of the study species, such as the variables
+that may affect its distribution, etc.
+
+To find spatial data sets, you can use the search bar. All information
+related to each spatial dataset is available by clicking on the name of
+the product. The code necessary to import the dataset is available as
+shown in the following figure.
 
 <figure>
-<img src="FigCh2/Figure3.JPG" style="width:90.0%"
-alt="Figure 3. SRTM Digital Elevation Data description." />
+<img src="./Figures/Fig3.JPG"
+alt="Figure 3. SRTM Digital Elevation Data description with code to import the dataset" />
 <figcaption aria-hidden="true">Figure 3. SRTM Digital Elevation Data
-description.</figcaption>
+description with code to import the dataset</figcaption>
 </figure>
 
-</center>
-
-The function `ee.Image()` allows you to import image catalogs. To import
-the elevation data, we need to provide the directory to the data within
-the parenthesis of the function. Remember to assign the image to a new
-object using **var** as follows:
-
+    // Example of code to import the SRTM Digital Elevation Data 30m
     var Elev = ee.Image("USGS/SRTMGL1_003");
 
-You have just imported the elevation data for the entire world.
+Note that the GEE function `ee.Algorithms.Terrain()` allows you to
+calculate slope, aspect, and hillshade from the elevation dataset.
 
-When working in spatial ecology, frequently, slope, aspect and hillshade
-are variables of interest as many species respond positively or
-negatively to changes in the terrain surface. Thus, these data sets can
-be good predictor variables in several models. We only have information
-about elevation, but you can calculate slope, aspect and hillshade and
-save them as new objects using other GEE built-in functions.
+We will demonstrate different ways to import and manipulate spatial data
+sets with the specific examples below.
 
-To calculate all these terrain variables, we will use the built-in
-function `ee.Algorithms.Terrains()`.
+### Defining an area to create pseudo-absences
 
-Let’s apply the function to the elevation image and save it as a new
-object.
+When using presence only data, the most common methodology when using
+data from online databases such as, GBIF, it is important to define the
+area to create pseudo-absences. Choosing the proper method is a critical
+step as it can affect model performance (Barbet-Massin, Jiguet, Albert,
+& Thuiller, 2012). Here we show how to implement three different
+methodologies. In all three, we first create a mask of the location of
+the presence data to avoid randomly generating pseudo-absences at the
+same pixels as presences.
 
-    var Terrain = ee.Algorithms.Terrain(Elev);
+-   Note: The mask to remove presence point locations from the area to
+    create pseudo-absences has a code problem that is now fixed. Also
+    see Study Case 1 on how to mask out water if your area of interest
+    includes areas over water.
 
-At this point, you should be familiarized with the code syntax to create
-objects and use built-in functions in GEE.
+1.  Generate random pseudo-absences across the entire study area.
 
-Print both elevation images to display the information on the console.
+<!-- -->
 
-    print(Elev);
-    print(Terrain);
+    // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
+    // This will prevent having presence and pseudo-absences in the same pixel. 
+    var mask = Data
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(GrainSize)).mask().neq(1).selfMask();
 
-You will see that differently from the Elev image that contains one
-band, the new image created (Terrain) contains four bands, one for each
-variable: elevation, slope, aspect and hillshade. All of these three new
-bands where calculated from the elevation data. If you want to know more
-about the algorithms used to obtain these results, remember that for all
-the Engine built-in functions you can use the API reference on the Docs
-tab to see a description and all the parameters used by the function.
-The `ee.Algorithms` category contains a list of currently supported
-algorithms for specialized or domain specific processing.
+    var AreaForPA = mask.clip(AOI);
 
-Look for the `ee.Algorithms.Terrains()` function in the Docs tab (Fig.
-4).
+1.  Generate pseudo-absences within a specified distance from presence
+    locations to limit pseudo-absences to areas potentially accessible
+    to the species (Araújo et al., 2019) and to account for the
+    potential geographical or environmental sampling bias of presence
+    records by creating pseudo-absences with a similar sampling bias
+    (Phillips et al., 2009). The `buffer()` function determines the area
+    available for generating pseudo-absences, assuming that these areas
+    have the same sampling bias than the records and represent areas
+    where animals can disperse. The `buffer()` function has two
+    arguments, the distance in meters for the buffer and the maximum
+    amount of error tolerated when approximating the buffer circle.
+    Larger maximum errors improve computing efficiency.
 
-<center>
+<!-- -->
+
+    // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
+    // This will prevent having presence and pseudo-absences in the same pixel. 
+    var mask = Data
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(GrainSize)).mask().neq(1).selfMask();
+
+    // Option 2: Spatially constrained pseudo-absence selection to a buffer around presence points.
+    var buffer = 500000; // Distance in meters.
+    var AreaForPA = Data.geometry().buffer(buffer, 1000);
+    var AreaForPA = mask.clip(AreaForPA).clip(AOI);
+    right.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
+
+1.  Limit the area to select pseudo-absences by implementing an
+    environmental profiling technique, masking out the known
+    environmentally suitable locations, similar to other two-steps
+    methods for generating pseudo-absences (Chefaoui & Lobo, 2008;
+    Senay, Worner, & Ikeda, 2013).
+
+This method requires fitting a clustering function to the occurrence
+data. When you have a large presence dataset, you can randomly choose a
+subset of the data with this line of code:
+`Data.randomColumn().sort('random').limit(200)` where the number in
+`limit()` specifies the number of random presence points used to train
+the clustering algorithm. A critical step is to display the cluster
+results and identify the correct cluster, zero or one, to use for
+creation of pseudo-absences. The cluster ID is assigned in an
+inconsistent manner and can change even when changing the order of the
+same data input. We wrote a line of code to automatically identify the
+cluster ID to define the area to create pseudo-absences. But it is
+important to display the cluster results and confirm that the clustering
+worked properly and that the correct cluster ID was identified before
+creating the mask:
+`var mask2 = Clresult.select(['cluster']).eq(clustID)`.
+
+    // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
+    // This will prevent having presence and pseudo-absences in the same pixel. 
+    var mask = Data
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(GrainSize)).mask().neq(1).selfMask();
+
+    //Option 3: Environmental pseudo-absences selection (environmental profiling)
+    // Extract environmental values for a random subset of presence data
+    var PixelVals = predictors.sampleRegions({collection: Data.randomColumn().sort('random').limit(200), properties: [], tileScale: 16, scale: GrainSize});
+    // Perform k-means clustering based on Euclidean distance.
+    var clusterer = ee.Clusterer.wekaKMeans({nClusters:2, distanceFunction:"Euclidean"}).train(PixelVals);
+    // Assign pixels to clusters using the trained clusterer.
+    var Clresult = predictors.cluster(clusterer);
+    // Display cluster results and identify the cluster IDs for pixels similar and dissimilar to the presence data
+    Map.addLayer(Clresult.randomVisualizer(), {}, 'Clusters', 0);
+    // Mask pixels that are dissimilar to the presence data.
+    // Obtain the ID of the cluster similar to the presence data and use the opposite cluster to define the allowable area to for creating pseudo-absences.
+    var clustID = Clresult.sampleRegions({collection: Data.randomColumn().sort('random').limit(200), properties: [], tileScale: 16, scale: GrainSize});
+    clustID = ee.FeatureCollection(clustID).reduceColumns(ee.Reducer.mode(),['cluster']);
+    clustID = ee.Number(clustID.get('mode')).subtract(1).abs();
+    var mask2 = Clresult.select(['cluster']).eq(clustID);
+    var AreaForPA = mask.updateMask(mask2).clip(AOI);
+
+    // Display area for creation of pseudo-absence
+    Map.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
+
+------------------------------------------------------------------------
+
+## Case Study 1: Modeling *Bradypus variegatus* habitat suitability and predicted distribution using presence-only data
+
+To demonstrate the basic code to conduct SDMs in Google Earth Engine, we
+will use *Bradypus variegatus* as a case study. This species has been
+widely used to present other SDM software and R packages (Hijmans et
+al., 2017; Kindt, 2018; Phillips et al., 2017, 2006) and allows us to
+compare GEE outputs with other tools. We obtained occurrence data from
+GBIF (GBIF.org \[20 January 2021\] GBIF Occurrence Download
+<https://doi.org/10.15468/dl.jxcv7e>). We filtered data to the period
+from 2000 to 2020, retaining only georeferenced records with a
+coordinate uncertainty &lt; 250 m. We further cleaned the data set by
+removing all locations that fall on top of buildings or water bodies
+assuming they had incorrect coordinates.
+
+### Loading species location data
+
+We upload the presence data set, specify the spatial scale to work with
+and randomly select one occurrence location per 1km grid cell.
+
+Note that the following code modifies the `ui.root` to display two maps
+on the map panel of the user interface, one for the habitat suitability
+map and one for the potential distribution map.
+
+    ///////////////////////////////
+    // Section 1 - Species data
+    ///////////////////////////////
+
+    // Load presence data
+    var Data = ee.FeatureCollection('users/ramirocrego84/BradypusVariegatus');
+    print('Original data size:', Data.size());
+
+    // Define spatial resolution to work with (m)
+    var GrainSize = 1000;
+
+    function RemoveDuplicates(data){
+      var randomraster = ee.Image.random().reproject('EPSG:4326', null, GrainSize);
+      var randpointvals = randomraster.sampleRegions({collection:ee.FeatureCollection(data), scale: 10, geometries: true});
+      return randpointvals.distinct('random');
+    }
+
+    var Data = RemoveDuplicates(Data);
+    print('Final data size:', Data.size());
+
+    // Add two maps to the screen.
+    var left = ui.Map();
+    var right = ui.Map();
+    ui.root.clear();
+    ui.root.add(left);
+    ui.root.add(right);
+
+    // Link maps, so when you drag one map, the other will be moved in sync.
+    ui.Map.Linker([left, right], 'change-bounds');
+
+    // Visualize presence points on the map
+    //right.addLayer(Data, {color:'red'}, 'Presence', 1);
+    //left.addLayer(Data, {color:'red'}, 'Presence', 1);
+
+> In JavaScript you can activate or inactivate lines of code by using
+> //. JavaScript will omit all the text that comes after the //.
+> Commenting out code that prints objects or adds elements to the map is
+> a good practice to keep the code clean and efficient. Sometimes it can
+> help reduce the chance of reaching memory limits as we reduce the
+> number of processes being called. Another option is to use /\* code
+> \*/. All code in between will be inactivated.
 
 <figure>
-<img src="FigCh2/Figure4.JPG" style="width:70.0%"
-alt="Figure 4. View of the ee.Algorithms.Terrains description in the Docs tab." />
-<figcaption aria-hidden="true">Figure 4. View of the
-ee.Algorithms.Terrains description in the Docs tab.</figcaption>
+<img src="./Figures/Fig4.png"
+alt="Figure 4. Presence data for Bradypus variegatus. Data were obtained from GBIF." />
+<figcaption aria-hidden="true">Figure 4. Presence data for Bradypus
+variegatus. Data were obtained from GBIF.</figcaption>
 </figure>
 
-</center>
+### Defining the area of interest
 
-This exercise shows you the versatility and power of conducting spatial
-analysis on GEE. You can in matters of seconds, download elevation data
-and calculate slope, aspect and hillshade for the entire world!
+The next step is to define the extent of the area of interest. Here we
+defined a 100 km buffer around the bounding box containing all presence
+data. The argument for the buffer distance is in meters.
 
-In many cases, we are only interested in one specific area and not the
-entire planet. We can use the GEE built-in function `clip()` to crop the
-image to our area of interest, the polygon we crated earlier.
+    ////////////////////////////////////////////
+    // Section 2 - Define Area of Interest
+    ////////////////////////////////////////////
 
-Using the dot notation, we add the function `clip` to the image object
-you want to crop, and specifying in between parenthesis the object
-representing the area of interest we previously created.
+    // Define the AOI
+    var AOI = Data.geometry().bounds().buffer({distance:50000, maxError:1000});
 
-    var Terrain = Terrain.clip(Bounds);
+    // Add border of study area to the map
+    var outline = ee.Image().byte().paint({
+      featureCollection: AOI, color: 1, width: 3});
+    right.addLayer(outline, {palette: 'FF0000'}, "Study Area");
+    left.addLayer(outline, {palette: 'FF0000'}, "Study Area");
 
-You have now an image object cropped to the area of interest.
+    // Center each map to the area of interest
+    right.centerObject(AOI, 4); //Number indicates the zoom level
+    left.centerObject(AOI, 4); //Number indicates the zoom level
 
-### Displaying data on the map
-
-Often, you will be interested in visualizing the images. To display the
-elevation data on the map, you can use the function `Map.addLayer()`. To
-the previous code, now add the function to display the data as follows:
-
-    Map.addLayer(Terrain);
-
-Parameters for functions may have default values, and then, you only
-need to specify the parameter if you want to change its default value.
-For instance, the previous function displays a gray surface. You need to
-change the default parameters for the appearance of the image to be able
-to visualize elevation change.
-
-In the case of the `Map.addLayers()` function, it contains five
-arguments (Fig. 5). The first argument is the ee.Object to display, in
-our case the **Elev object**. The second argument are the visualization
-parameters, which you can pass to the function as a dictionary. Those
-include the bands to display (when you have more than one band in the
-image, such as the Terrain image created that has 4 bands), the minimum
-and maximum values to display, and colors (Remember that you can also
-change those parameters from the Layers button in the display). The
-third argument is the name of the layer (a string). The fourth argument
-is a Boolean number (i.e., 1 for TRUE or 0 for FALSE) and indicates
-whether the layer should be displayed by default or be activated by the
-user manually by clicking on the layers tab. The last argument in the
-opacity, which goes from 0 (transparent) to 1.
-
-<center>
+> Note that in the code we are using right and left instead of the
+> default Map statement now that we have divided the interactive map
+> into two elements, ‘right’ and ‘left’.
 
 <figure>
-<img src="FigCh2/Figure5.JPG" style="width:70.0%"
-alt="Figure 5. Description of the Map.addLayers function." />
-<figcaption aria-hidden="true">Figure 5. Description of the
-Map.addLayers function.</figcaption>
+<img src="./Figures/Fig5.png"
+alt="Figure 5. This figure shows the area of interest, which was defined as a 100 km buffer around the bounding box containing all presence locations." />
+<figcaption aria-hidden="true">Figure 5. This figure shows the area of
+interest, which was defined as a 100 km buffer around the bounding box
+containing all presence locations.</figcaption>
 </figure>
 
-</center>
+### Loading predictor variables
 
-    Map.addLayer(Elev, {min: 0, max: 1000}, 'DEM', 1);
-    Map.addLayer(Terrain, {bands:['elevation'] ,min: 0, max: 1000}, 'Elevation', 1); //Same as before but from the terrain object
-    Map.addLayer(Terrain, {bands:['slope'] ,min: 0, max: 40, palette:'white,red'}, 'Slope', 1); //Display slope and add a color palette
+For this example, we selected a combination of climatic predictor
+variables (temperature seasonality, maximum temperature of warmest
+month, minimum temperature of coldest month and annual precipitation)
+obtained from (Hijmans et al. 2005), elevation (Farr et al. 2007) and
+percentage tree cover at 250 m resolution obtained from the Terra MODIS
+Vegetation Continuous Fields (VCF) product. The VCF product is generated
+yearly and produced using monthly composites of Terra MODIS Land Surface
+Reflectance data. We estimated mean percentage tree cover for the period
+of the occurrence data, 2003 to 2020. All predictor variables ultimately
+need to be combined as bands into a single multi-band image. We also
+mask oceans from the multi-band predictor image.
 
-Note the difference between an image that was cropped and the one that
-was not cropped. Play with the image visualization using the Layers
-button in the display.
+The calculation of the median percentage tree cover for each pixel
+across the annual MODIS images shows how powerful Google Earth Engine
+can be for raster processing when creating predictor variables.
 
-#### Image collections
+    ////////////////////////////////////////////////
+    // Section 3 - Selecting Predictor Variables
+    ////////////////////////////////////////////////
 
-We have so far worked with a single image. Now, we are going to access
-an entire image collection. Image collections can contain hundreds of
-images across long periods of time, such as images from satellites.
-Similarly to the elevation image, you can search for image collections.
-Let’s access the image collection of Landsat 8. Landsat images come with
-different levels of pre-processing. Here we will work with T1, that is
-the highest level of pre-processing.
+    // Load WorldClim BIO Variables (a multiband image) from the data catalog
+    var BIO = ee.Image("WORLDCLIM/V1/BIO");
 
-Use the search bar to find the name of the Landsat 8 T1 image collection
-and import it using the function `ee.ImageCollection()`.
+    // Load elevation data from the data catalog and calculate slope, aspect, and a simple hillshade from the terrain Digital Elevation Model.
+    var Terrain = ee.Algorithms.Terrain(ee.Image("USGS/SRTMGL1_003"));
 
-    var landsat8 = ee.ImageCollection("LANDSAT/LC08/C02/T1")
+    // Load NDVI 250 m collection and estimate median annual tree cover value per pixel
+    var MODIS = ee.ImageCollection("MODIS/006/MOD44B");
+    var MedianPTC = MODIS.filterDate('2003-01-01', '2020-12-31').select(['Percent_Tree_Cover']).median();
 
-You just imported the entire image collection of Landsat 8 for the
-entire Earth land surface. You could try to print the image collection
-to see all the images contained in the list. However, because there are
-too many images, printing it will either be very slow, time out, or
-return an error.
+    // Combine bands into a single multi-band image
+    var predictors = BIO.addBands(Terrain).addBands(MedianPTC);
 
-#### Filtering and sorting
+    // Mask out ocean pixels from the predictor variable image
+    var watermask =  Terrain.select('elevation').gt(0); //Create a water mask
+    var predictors = predictors.updateMask(watermask).clip(AOI);
 
-What we need to do to work with image collections is to filter them and
-reduce the number of images in the list to the ones that we are
-interested in. To do this, we will use filters.
+    // Select subset of bands to keep for habitat suitability modeling
+    var bands = ['bio04','bio05','bio06','bio12','elevation','Percent_Tree_Cover'];
+    var predictors = predictors.select(bands);
 
-Filters are a set of functions that allows you to select a set of images
-based on certain parameters such as position, time windows, numbers,
-properties, depending on the type of object you are trying to filter,
-such as image collections, feature collections, lists or geometries.
-Lets see how this works for image collections.
+    // Display layers on the map
+    right.addLayer(predictors, {bands:['elevation'], min: 0, max: 5000,  palette: ['000000','006600', '009900','33CC00','996600','CC9900','CC9966','FFFFFF',]}, 'Elevation (m)', 0);
+    right.addLayer(predictors, {bands:['bio05'], min: 190, max: 400, palette:'white,red'}, 'Temperature seasonality', 0); 
+    right.addLayer(predictors, {bands:['bio12'], min: 0, max: 4000, palette:'white,blue'}, 'Annual Mean Precipitation (mm)', 0); 
+    right.addLayer(predictors, {bands:['Percent_Tree_Cover'], min: 1, max: 100, palette:'white,yellow,green'}, 'Percent_Tree_Cover', 0); 
 
-Let’s start by filtering our image collection by space and by time,
-specifying the area and the time frame in which we are interested in
-(Remember different satellite products contain images for different time
-periods and that information is provided in the data description of each
-product). We need to use `filterBounds()` to select images from our area
-of interest (the object Bounds) and `filterDate()` to keep only images
-from 2019, thus specifying a time window between 2019-01-01 and
-2019-12-31. Note how we can add functions to the same line of code using
-the dot notation.
+<figure>
+<img src="./Figures/Fig6.png"
+alt="Figure 6. Examples of predictor variables. A) Elevation; B) Temperature seasonality; C) Annual precipitation; D) Median percentage of tree cover between 2003 and 2020." />
+<figcaption aria-hidden="true">Figure 6. Examples of predictor
+variables. A) Elevation; B) Temperature seasonality; C) Annual
+precipitation; D) Median percentage of tree cover between 2003 and
+2020.</figcaption>
+</figure>
 
-    var landsat8 = ee.ImageCollection("LANDSAT/LC08/C02/T1")
-        .filterBounds(Bounds)
-        .filterDate('2019-01-01', '2019-12-31')
+It is important to make sure that there is no significant correlation
+among predictor variables that can cause collinearity. We account for
+this by estimating the Spearman correlation among predictor variable
+values at 5000 random locations. Highly correlated predictor variables
+should not be included in the same model.
 
-The new object contains only images for which the path overlaps our area
-of interest and that were obtained during 2019.
+    // Estimate correlation among predictor variables
 
-In addition, we are interested in finding images that are cloud-free.
-Here we will use another function to solve this problem. All Landsat
-images contain information about cloud cover in the metadata. We can use
-this information to sort the image collection from lowest cloud cover to
-highest cloud cover using the function `sort()`, which operates on the
-image metadata. You could apply a new function to the object created
-with the previous line of code. You can also simplify things by
-concatenating functions in the same line of code, again using the dot
-notation.
+    // Extract local covariate values from multi-band predictor image at 5000 random points
+    var DataCor = predictors.sample({scale: GrainSize, numPixels: 5000, geometries: true}); //Generate 5000 random points
+    var PixelVals = predictors.sampleRegions({collection: DataCor, scale: GrainSize, tileScale: 16}); //Extract covariate values
 
-    var landsat8 = ee.ImageCollection("LANDSAT/LC08/C02/T1")
-        .filterBounds(Bounds)
-        .filterDate('2019-01-01', '2019-12-31')
-        .sort('CLOUD_COVER', true);
+    // To check all pairwise correlations we need to map the reduceColumns function across all pairwise combinations of predictors
+    var CorrAll = predictors.bandNames().map(function(i){
+        var tmp1 = predictors.bandNames().map(function(j){
+          var tmp2 = PixelVals.reduceColumns({
+            reducer: ee.Reducer.spearmansCorrelation(),
+            selectors: [i, j]
+          });
+        return tmp2.get('correlation');
+        });
+        return tmp1;
+      });
+    print('Variables correlation matrix',CorrAll);
+
+> This is a function that requires a lot of memory in GEE as it is
+> working with a large feature collection. Once you have run the
+> correlation code and selected the final set of covariables to use, it
+> is recommended to comment out the print function so the correlations
+> between predictor variables are not run repeatedly.
+
+### Creating pseudo-absences
+
+In this example, we use presence only data, the most common methodology
+when using data from online databases such as, GBIF. We will generate
+pseudo-absences to fit the model. But first, we need to define the area
+in which random pseudo-absences can be generated.
+
+We used a two-step environmental profiling approach to restrict the area
+for the creation of pseudo-absences. We first performed a k-means
+clustering based on Euclidean distance for the presence data and then
+created random pseudo-absences within the pixels classified as being
+more dissimilar to the presence data.
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 4 - Defining area for pseudo-absences and spatial blocks for model fitting and cross validation
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
+    // This will prevent having presence and pseudo-absences in the same pixel. 
+    var mask = Data
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(GrainSize)).mask().neq(1).selfMask();
+
+    // Option 1: Simple random pseudo-absence selection across the entire area of interest.
+    // var AreaForPA = mask.updateMask(watermask).clip(AOI);
+
+    // Option 2: Spatially constrained pseudo-absence selection to a buffer around presence points.
+    //var buffer = 500000; // Distance in meters.
+    //var AreaForPA = Data.geometry().buffer({distance:buffer, maxError:1000});
+    //var AreaForPA = mask.clip(AreaForPA).updateMask(watermask).clip(AOI);
+    //right.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
+
+    //Option 3: Environmental pseudo-absences selection (environmental profiling)
+    // Extract environmental values for the a random subset of presence data
+    var PixelVals = predictors.sampleRegions({collection: Data.randomColumn().sort('random').limit(200), properties: [], tileScale: 16, scale: GrainSize});
+    // Perform k-means clusteringthe clusterer and train it using based on Eeuclidean distance.
+    var clusterer = ee.Clusterer.wekaKMeans({nClusters:2, distanceFunction:"Euclidean"}).train(PixelVals);
+    // Assign pixels to clusters using the trained clusterer
+    var Clresult = predictors.cluster(clusterer);
+    // Display cluster results and identify the cluster IDs for pixels similar and dissimilar to the presence data
+    right.addLayer(Clresult.randomVisualizer(), {}, 'Clusters', 0);
+    // Mask out pixels that are dissimilar to presence data.
+    // Obtain the ID of the cluster similar to the presence data and use the opposite cluster to define the allowable area to for creatinge pseudo-absences
+    var clustID = Clresult.sampleRegions({collection: Data.randomColumn().sort('random').limit(200), properties: [], tileScale: 16, scale: GrainSize});
+    clustID = ee.FeatureCollection(clustID).reduceColumns(ee.Reducer.mode(),['cluster']);
+    clustID = ee.Number(clustID.get('mode')).subtract(1).abs();
+    var mask2 = Clresult.select(['cluster']).eq(clustID);
+    var AreaForPA = mask.updateMask(mask2).clip(AOI);
+
+    // Display area for creation of pseudo-absence
+    right.addLayer(AreaForPA, {palette: 'black'},'Area to create pseudo-absences', 0);
+
+<figure>
+<img src="./Figures/Fig7a.png"
+alt="Figure 7a. Results from cluster analysis." />
+<figcaption aria-hidden="true">Figure 7a. Results from cluster analysis.</figcaption>
+</figure>
+
+<figure>
+<img src="./Figures/Fig7b.png"
+alt="Figure 7b. Area to create pseudo-absences." />
+<figcaption aria-hidden="true">Figure 7b. Area to create pseudo-absences.</figcaption>
+</figure>
+
+For this case study, we implement a block repeated split-sample
+cross-validation technique to randomly partition data for model training
+and validation (Roberts et al., 2017; Valavi, Elith, Lahoz-Monfort, &
+Guillera-Arroita, 2019). We then run multiple model iterations with
+random block splits to create training and validation data sets.
+
+The argument `scale` determines the range in m for each block. In this
+case, we are using 200 km.
+
+    // Define a function to create a grid over AOI
+    function makeGrid(geometry, scale) {
+      // pixelLonLat returns an image with each pixel labeled with longitude and
+      // latitude values.
+      var lonLat = ee.Image.pixelLonLat();
+      // Select the longitude and latitude bands, multiply by a large number then
+      // truncate them to integers.
+      var lonGrid = lonLat
+        .select('longitude')
+        .multiply(100000)
+        .toInt();
+      var latGrid = lonLat
+        .select('latitude')
+        .multiply(100000)
+        .toInt();
+      return lonGrid
+        .multiply(latGrid)
+        .reduceToVectors({
+          geometry: geometry.buffer({distance:20000,maxError:1000}), //The buffer allows you to make sure the grid includes the borders of the AOI.
+          scale: scale,
+          geometryType: 'polygon',
+        });
+    }
+    // Create grid and remove cells outside AOI
+    var Scale = 200000; // Set range in m to create spatial blocks
+    var grid = makeGrid(AOI, Scale);
+    var Grid = watermask.reduceRegions({collection: grid, reducer: ee.Reducer.mean()}).filter(ee.Filter.neq('mean',null));
+    right.addLayer(Grid, {},'Grid for spatil block cross validation', 0);
+
+<figure>
+<img src="./Figures/Fig8.png"
+alt="Figure 8. Visualization of blocks created for cross validation." />
+<figcaption aria-hidden="true">Figure 8. Visualization of blocks
+created for cross validation.</figcaption>
+</figure>
+
+### Model fit, model validation and model predictions
+
+We can now fit the models. There are several functions that need to be
+defined.
+
+The first function allows us to create random seeds for splitting
+spatial blocks and generating pseudo-absences at each iteration.
+
+    //////////////////////////////////
+    // Section 5 - Fitting SDM models
+    //////////////////////////////////
+
+    // Define function to generate a vector of random numbers between 1 and 1000
+    function runif(length) {
+        return Array.apply(null, Array(length)).map(function() {
+            return Math.round(Math.random() * (1000 - 1) + 1)
+        });
+    }
+
+We need to define a function to fit models.
+
+There are several non-parametric classification algorithms available in
+GEE that can be implemented. These include random forest, support vector
+machine, classification and regression trees, maximum entropy, and
+gradient boosting.
+
+We implement a 10 block repeated split-sample cross-validation
+technique. The number of pseudo-absences is balanced with the number of
+presences for the training and validation data sets, as this practice is
+recommended for machine learning classifiers (Evans et al., 2011;
+Barbet-Massin et al. 2012). In this case, we will use random forest. But
+note that in the `SDM` function, we also provide the code to fit
+gradient boosting classifiers. To change the classifier, you need to
+comment out the random forest function call using two forward slashes
+(`//`) and activate the gradient boosting classifier.
+
+We use the `setOutputMode()` function to obtain results as `PROBABILITY`
+and as `CLASSIFICATION`. This allows us to obtain a binary output (i.e.,
+predicted presence) to quickly visualize in the interactive map. Later
+we will show how to define a threshold to transform the probability
+output into a binary map.
+
+At each iteration, the spatial blocks will be randomly split into 70%
+for model fitting and 30% for model validation, respectively.
+Consequently, each of the 10 runs will have a different set of presence
+and pseudo-absence points for model fitting and validation.
+
+    // Define SDM function
+    // Activate the desired classifier, random forest or gradient boosting. 
+    // Note that other algorithms are available in GEE. See ee.Classifiers on the documentation for more information.
+
+    function SDM(x) {
+        var Seed = ee.Number(x);
         
-    print(landsat8) //The image collection contains 240 images
+        // Randomly split blocks for training and validation
+        var GRID = ee.FeatureCollection(Grid).randomColumn({seed:Seed}).sort('random');
+        var TrainingGrid = GRID.filter(ee.Filter.lt('random', split));  // Filter points with 'random' property < split percentage
+        var TestingGrid = GRID.filter(ee.Filter.gte('random', split));  // Filter points with 'random' property >= split percentage
 
-The new image collection is now sorted by the cloud cover percentage,
-from lowest to highest. We also see that the collection contains now 240
-images.
+        // Presence
+        var PresencePoints = ee.FeatureCollection(Data);
+        PresencePoints = PresencePoints.map(function(feature){return feature.set('PresAbs', 1)});
+        var TrPresencePoints = PresencePoints.filter(ee.Filter.bounds(TrainingGrid));  // Filter presence points for training 
+        var TePresencePoints = PresencePoints.filter(ee.Filter.bounds(TestingGrid));  // Filter presence points for testing
+        
+        // Pseudo-absences
+        var TrPseudoAbsPoints = AreaForPA.sample({region: TrainingGrid, scale: GrainSize, numPixels: TrPresencePoints.size().add(300), seed:Seed, geometries: true}); // We add extra points to account for those points that land in masked areas of the raster and are discarded. This ensures a balanced presence/pseudo-absence data set
+        TrPseudoAbsPoints = TrPseudoAbsPoints.randomColumn().sort('random').limit(ee.Number(TrPresencePoints.size())); //Randomly retain the same number of pseudo-absences as presence data 
+        TrPseudoAbsPoints = TrPseudoAbsPoints.map(function(feature){
+            return feature.set('PresAbs', 0);
+            });
+        
+        var TePseudoAbsPoints = AreaForPA.sample({region: TestingGrid, scale: GrainSize, numPixels: TePresencePoints.size().add(100), seed:Seed, geometries: true}); // We add extra points to account for those points that land in masked areas of the raster and are discarded. This ensures a balanced presence/pseudo-absence data set
+        TePseudoAbsPoints = TePseudoAbsPoints.randomColumn().sort('random').limit(ee.Number(TePresencePoints.size())); //Randomly retain the same number of pseudo-absences as presence data 
+        TePseudoAbsPoints = TePseudoAbsPoints.map(function(feature){
+            return feature.set('PresAbs', 0);
+            });
 
-You can save the first image (lowest cloud cover) as a new object and
-display it. This time, you are displaying an image composed by a series
-of bands and the final color display depends on the combination of bands
-assigned to the tree main colors, red, green and blue. If you assign the
-bands corresponding to the three colors, then you obtain a true color
-display. You can also try a false color composition or displaying just
-the thermal band.
+        // Merge presence and pseudo-absencepoints
+        var trainingPartition = TrPresencePoints.merge(TrPseudoAbsPoints);
+        var testingPartition = TePresencePoints.merge(TePseudoAbsPoints);
 
-    var first_image = landsat8.first();
+        // Extract local covariate values from multiband predictor image at training points
+        var trainPixelVals = predictors.sampleRegions({collection: trainingPartition, properties: ['PresAbs'], scale: GrainSize, tileScale: 16, geometries: true});
 
-    // True color
-    Map.addLayer(first_image, {bands: ['B4', 'B3', 'B2'], min: 7000, max: 10000}, 'Landsat8-RGB', 1);
+        // Classify using random forest
+        var Classifier = ee.Classifier.smileRandomForest({
+           numberOfTrees: 500, //The number of decision trees to create.
+           variablesPerSplit: null, //The number of variables per split. If unspecified, uses the square root of the number of variables.
+           minLeafPopulation: 10,//Only create nodes whose training set contains at least this many points. Integer, default: 1
+           bagFraction: 0.5,//The fraction of input to bag per tree. Default: 0.5.
+           maxNodes: null,//The maximum number of leaf nodes in each tree. If unspecified, defaults to no limit.
+           seed: Seed//The randomization seed.
+          });
+        
+        // Classify using a gradient boosting
+        // var ClassifierPr = ee.Classifier.smileGradientTreeBoost({
+        //   numberOfTrees:500, //The number of decision trees to create.
+        //   shrinkage: 0.005, //The shrinkage parameter in (0, 1) controls the learning rate of procedure. Default: 0.005
+        //   samplingRate: 0.7, //The sampling rate for stochastic tree boosting. Default 0.07
+        //   maxNodes: null, //The maximum number of leaf nodes in each tree. If unspecified, defaults to no limit.
+        //   loss: "LeastAbsoluteDeviation", //Loss function for regression. One of: LeastSquares, LeastAbsoluteDeviation, Huber.
+        //   seed:Seed //The randomization seed.
+        // });
+      
+        // Presence probability 
+        var ClassifierPr = Classifier.setOutputMode('PROBABILITY').train(trainPixelVals, 'PresAbs', bands); 
+        var ClassifiedImgPr = predictors.select(bands).classify(ClassifierPr);
+        
+        // Binary presence/absence map
+        var ClassifierBin = Classifier.setOutputMode('CLASSIFICATION').train(trainPixelVals, 'PresAbs', bands); 
+        var ClassifiedImgBin = predictors.select(bands).classify(ClassifierBin);
+       
+        return ee.List([ClassifiedImgPr, ClassifiedImgBin, trainingPartition, testingPartition]);
+    }
 
-    // False color
-    Map.addLayer(first_image, {bands: ['B5', 'B4', 'B3'], min: 7000, max: 18000}, 'Landsat8-FalseColor', 1);
+Now we need to define some parameters before executing the SDM function.
+A variable with the percentage for data split, and a variable with the
+number of iterations to run.
 
-    // Thermal
-    Map.addLayer(first_image, {bands: ['B10'], min: 19000, max: 24000, palette: ['blue', 'red', 'orange', 'yellow']}, 'Landsat8-Thermal', 1)
+    // Define partition for training and testing data
+    var split = 0.70;  // // The proportion of the blocks used to select training data
 
-As always, you can access the complete GEE filtering functionality by
-tipping `ee.Filter` into the search bar of the **Docs tab**.
+    // Define number of repetitions
+    var numiter = 10;
 
-#### Reducing
+We can now map the model function. Instead of generating random numbers,
+we will manually set 10 random numbers for reproducibility of results.
+The length of the list of random seeds determines the number of
+iterations of model fitting and validation to run, with each iteration
+having a different set of presence and pseudo-absence points.
 
-We have so far selected and printed the first image of the list. Now we
-want to create a full mosaic of the study area with images that are free
-of clouds. The reduce function allows to reduce image collections to a
-single image. It is a way to aggregate data over time
-(`imageCollection.reduce()`), space (`image.reduceRegion()`,
-`image.reduceNeighborhood()`) or bands (`image.reduce()`).
+    // Fit SDM 
+    //var RanSeeds = runif(numiter)
+    //var results = ee.List(RanSeeds).map(SDM)
 
-The `ee.Reducer()` can be a used to operate a simple statistic for
-aggregating data (e.g. minimum, maximum, mean, median, standard
-deviation, etc.), or for more complicated analysis on the input data
-(e.g. histogram, linear regression, list). In all these cases, the
-reducer takes an input data set and calculates a single output. When a
-single input reducer is applied to a multi-band image, such as Landsat
-image, GEE automatically applies the reducer separately to each band,
-producing an output image with the same number of bands as the input.
+    // While the runif function can be used to generate random seeds, we map the SDM function over random created numbers for reproducibility of results
+    var results = ee.List([35,68,43,54,17,46,76,88,24,12]).map(SDM);
 
-Continuing with our example, this time we will select all images with
-less than 10% cloud cover and estimate the median value for each pixel
-and each band in the Landsat 8 collection. To retain only images with
-&lt;10% cloud cover we will use the function, `filterMetadata()` that
-requires three arguments: The name of the metadata property, the name of
-a comparison operator (it can be: “equals”, “less\_than”,
-“greater\_than”, “not\_equals”, “not\_less\_than”, “not\_greater\_than”,
-“starts\_with”, “ends\_with”, “not\_starts\_with”, “not\_ends\_with”,
-“contains”, or “not\_contains”) and a number for the cloud cover
-percentage to compare against. We will also increase the time period to
-include images from the first day of 2015 to the last day of 2019 to
-obtain a five years mosaic of our study area.
+    // Extract results from list
+    var results = results.flatten();
+    //print(results); //Activate this line to visualize all elements
 
-    var l8_mosaic_1 = ee.ImageCollection("LANDSAT/LC08/C02/T1")
-        .filterBounds(Bounds)
-        .filterDate('2015-01-01', '2019-12-31')
-        .filterMetadata('CLOUD_COVER', 'less_than', 10)
-        .reduce(ee.Reducer.median());
+Now we can extract the model predictions and display them on the maps.
+Note that we will also create some legends for each map.
 
-    print(l8_mosaic_1)
+    ///////////////////////////////////////////////////////////////////
+    // Section 6 - Extracting and displaying model prediction results
+    ///////////////////////////////////////////////////////////////////
 
-The reducer is going to change the name of the bands. When printing the
-image, you can see that the band names have changed (Fig. 6).
+    // Habitat suitability
 
-<center>
-
-<figure>
-<img src="FigCh2/Figure6.JPG" style="width:60.0%"
-alt="Figure 6. Band names for the mosaic after applying a median reducer." />
-<figcaption aria-hidden="true">Figure 6. Band names for the mosaic after
-applying a median reducer.</figcaption>
-</figure>
-
-</center>
-
-Instead of using the reducer, you can use the built-in function
-`median()` that will do the same operation on each pixel across the
-stack of all matching bands but retain the original band names.
-
-    var l8_mosaic_2 = ee.ImageCollection("LANDSAT/LC08/C02/T1")
-        .filterBounds(Bounds)
-        .filterDate('2015-01-01', '2019-12-31')
-        .filterMetadata('CLOUD_COVER', 'less_than', 10)
-        .median();
-
-    Map.addLayer(l8_mosaic_2, {bands: ['B4', 'B3', 'B2'], min: 7000, max: 12800}, 'Landsat8-Mosaic', 1);
-
-As we develop more complex analysis along the tutorial, we will learn more
-specifics on the reducer functions. You can look into the `ee.Reduce`
-methods that exist in the API.
-
-#### Band math
-
-Another powerful functionality is performing mathematical operations on
-images or image bands. For example, you can use a combination of bands
-to calculate vegetation indexes. One of the most widely used vegetation
-indexes is the Normalized Difference Vegetation Index (NDVI). This index
-provides an estimation of vegetation productivity, thus, is widely used
-in spatial ecology studies. It is calculated using the near infrared and
-red bands as follows:
-
-*N**D**V**I* = (*N**I**F*−*R**E**D*)/(*N**I**R*+*R**E**D*)
-
-To demonstrate the versatility of GEE to perform mathematical operations
-on images, we will calculate NDVI using different methods.
-
-Some simple image math can be performed by using `add()`, `subtract()`,
-`divide()`, `multiply()`, `pow()`, etc. Those operators can be applied
-on numbers, images or arrays. We can use these operators to calculate
-NDVI.
-
-First, we need to `select` the desired bands from the image and then
-apply the mathematical operation. For our example, we need the red band
-(band 4) and the near infrared band (band 5):
-
-    // Method 1 - Applying band operations
-    var ndvi_1 = l8_mosaic_2.select('B5').subtract(l8_mosaic_2.select('B4'))
-      .divide(l8_mosaic_2.select('B5').add(l8_mosaic_2.select('B4')));
-
-However, it is generally the case that you need to perform more
-complicated mathematical operations. For those cases, you can use the
-`expression()` function, which allows to represent math operation in
-text forms.
-
-    // Method 2 - Applying band opperations using a expression
-    var ndvi_2 = l8_mosaic_2.expression('(B5 - B4) / (B5 + B4)', {
-        B5: l8_mosaic_2.select('B5'),
-        B4: l8_mosaic_2.select('B4')
-    });
-
-Note that `expression()` returns an integer if two integers are divided,
-so that the expression 10 / 20 = 0. To obtain decimal numbers as
-results, you need to have decimal numbers in the operations. For
-instance, in the previous case, you have to multiply one of the operands
-by 1.0: 10 \* 1.0 / 20 = 0.5.
-
-For many basic operations, such as calculating vegetation indexes, often
-exists a built-in function in Earth Engine that makes things much
-easier. Here, we will use the `normilizedDifference()` function. We need
-to provide the name of the two bands to use.
-
-    // Method 3 - Using a built-in function
-    var ndvi_3 = l8_mosaic_2.normalizedDifference(['B5', 'B4'])
-
-Finally, it may be the case that you want to write your own function.
-The advantage of writing a function is that you can then apply the
-function to any image you want to work with. Here, we are going to write
-a function that calculated NDVI (function `normilizedDifference()`),
-renames the resulting band as NDVI (function `rename()`) and adds it to
-the image as a new band (function `addBands()`).
-
-    // Method 4 - Building your own function to compute NDVI and add it as a new band to the image
-    var addNDVI = function(image) {
-        var NDVI = image.normalizedDifference(['B5', 'B4']).rename('NDVI')
-        return image.addBands(NDVI) //with addBands, the new NDVI is added as a new band to the existing bands.
+    // Set visualization parameters
+    var visParams = {
+      min: 0,
+      max: 1,
+      palette: ["#440154FF","#482677FF","#404788FF","#33638DFF","#287D8EFF",
+      "#1F968BFF","#29AF7FFF","#55C667FF","#95D840FF","#DCE319FF"],
     };
 
-    // Apply the function to the mosaic
-    var l8_mosaic_3 = addNDVI(l8_mosaic_2);
+    // Extract all model predictions
+    var images = ee.List.sequence(0,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
 
-You can also use the function `map()` to apply the addNDVI function you
-have created to an entire image collection. As a result, all the images
-on the collection will have an additional band called NDVI.
+    // You can add all the individual model predictions to the map. The number of layers to add will depend on how many iterations you selected.
 
-    var l8_NDVI = ee.ImageCollection("LANDSAT/LC08/C02/T1")
-        .filterBounds(Bounds)
-        .filterDate('2015-01-01', '2019-12-31')
-        .filterMetadata('CLOUD_COVER', 'less_than', 10)
-        .map(addNDVI);
+    // left.addLayer(ee.Image(images.get(0)), visParams, 'Run1');
+    // left.addLayer(ee.Image(image.get(1)), visParams, 'Run2');
 
-#### Masking
+    // Calculate mean of all individual model runs
+    var ModelAverage = ee.ImageCollection.fromImages(images).mean();
 
-Another common operation when working with images is masking. Masking
-refers to setting certain pixels from an image to no data values (i.e.,
-making them transparent) in order to exclude them from analyses. Masking
-is usually done to remove pixels with poor data, representing clouds or
-any other area that wants to be excluded.
+    // Add final habitat suitability layer and presence locations to the map
+    left.addLayer(ModelAverage, visParams, 'Habitat Suitability');
+    left.addLayer(Data, {color:'red'}, 'Presence', 1);
 
-Every pixel in a band of an `ee.Image`, in addition to its value, has a
-mask which ranges from 0 (i.e., no data) to 1. In Earth Engine, all
-masked pixels (0) are treated as no data. When applying a mask, pixels
-with a value of 0 are then excluded from operations. For instance, when
-applying `image1.mask(image2)`, the values of image2 are taken and used
-as a mask of image 1, meaning that pixels in image2 that have the value
-0 will be made transparent in image1.
+    // Create legend for habitat suitability map.
+    var legend = ui.Panel({style: {position: 'bottom-left', padding: '8px 15px'}});
 
-Continuing with our example, we may be interested in removing all the
-ocean water from the NDVI image. We need to create a mask that will
-retain only the land pixels (Fig. 7).
+    legend.add(ui.Label({
+      value: "Habitat suitability",
+      style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 4px 0', padding: '0px'}
+    }));
 
-<center>
+    legend.add(ui.Thumbnail({
+      image: ee.Image.pixelLonLat().select(0),
+      params: {
+        bbox: [0,0,1,0.1],
+        dimensions: '200x20',
+        format: 'png',
+        min: 0,
+        max: 1,
+        palette: ["#440154FF","#482677FF","#404788FF","#33638DFF","#287D8EFF",
+      "#1F968BFF","#29AF7FFF","#55C667FF","#95D840FF","#DCE319FF"]
+      },
+      style: {stretch: 'horizontal', margin: '8px 8px', maxHeight: '40px'},
+    }));
+
+    legend.add(ui.Panel({
+      widgets: [
+        ui.Label('Low', {margin: '0px 0px', textAlign: 'left', stretch: 'horizontal'}),
+        ui.Label('Medium', {margin: '0px 0px', textAlign: 'center', stretch: 'horizontal'}),
+        ui.Label('High', {margin: '0px 0px', textAlign: 'right', stretch: 'horizontal'}),
+        ],layout: ui.Panel.Layout.Flow('horizontal')
+    }));
+
+    legend.add(ui.Panel(
+      [ui.Label({value: "Presence locations",style: {fontWeight: 'bold', fontSize: '16px', margin: '4px 0 4px 0'}}),
+       ui.Label({style:{color:"red",margin: '4px 0 0 4px'}, value:'◉'})],
+      ui.Panel.Layout.Flow('horizontal')));
+
+    left.add(legend);
+
+
+    // Distribution map
+
+    // Extract all model predictions
+    var images2 = ee.List.sequence(1,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
+
+    // Calculate mean of all indivudual model runs
+    var DistributionMap = ee.ImageCollection.fromImages(images2).mode();
+
+    // Add final distribution map and presence locations to the map
+    right.addLayer(DistributionMap, 
+      {palette: ["white", "green"], min: 0, max: 1}, 
+      'Potential distribution');
+    right.addLayer(Data, {color:'red'}, 'Presence', 1);
+
+    // Create legend for distribution map
+    var legend2 = ui.Panel({style: {position: 'bottom-left',padding: '8px 15px'}});
+    legend2.add(ui.Label({
+      value: "Potential distribution map",
+      style: {fontWeight: 'bold',fontSize: '18px',margin: '0 0 4px 0',padding: '0px'}
+    }));
+
+    var colors2 = ["green","white"];
+    var names2 = ['Presence', 'Absence'];
+    var entry2;
+    for (var x = 0; x<2; x++){
+      entry2 = [
+        ui.Label({style:{color:colors2[x],margin: '4px 0 4px 0'}, value:'██'}),
+        ui.Label({value: names2[x],style: {margin: '4px 0 4px 4px'}})
+      ];
+      legend2.add(ui.Panel(entry2, ui.Panel.Layout.Flow('horizontal')));
+    }
+
+    legend2.add(ui.Panel(
+      [ui.Label({value: "Presence locations",style: {fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0'}}),
+       ui.Label({style:{color:"red",margin: '0 0 4px 4px'}, value:'◉'})],
+      ui.Panel.Layout.Flow('horizontal')));
+
+    right.add(legend2);
 
 <figure>
-<img src="FigCh2/Figure7.JPG" style="width:80.0%"
-alt="Figure 7. Masking process." />
-<figcaption aria-hidden="true">Figure 7. Masking process.</figcaption>
+<img src="./Figures/Fig9.png"
+alt="Figure 9. Visualization of predicted habitat suitability and potential distribution of Bradypus variegatus." />
+<figcaption aria-hidden="true">Figure 9. Visualization of predicted
+habitat suitability and potential distribution of <em>Bradypus
+variegatus</em>.</figcaption>
 </figure>
 
-</center>
+> It is important to understand that GEE does a resampling on the fly
+> for displaying maps. The resolution of the model output will change
+> with the zoom level. To set the visualization at the resolution of the
+> analysis defined with the grain size, you need to specify the
+> resolution of the image using the function `reproject()`.
 
-Using the elevation data, we can use the function `gt()` (grater than)
-to create a binary image with a value of 1 for all pixels with
-elevations greater than 0, and a value of 0 to pixels with values lower
-than 0. Then we use the function `updateMask()` to retain only NDVI
-values from the land (i.e., elevation &gt; 0).
+In the next section, we will calculate the Area Under the Curve of the
+Receiver Operator Characteristic (AUC-ROC)(Fielding and Bell, 1997) and
+the Area Under the Precision-Recall Curve (AUC-PR; Sofaer, Hoeting, &
+Jarnevich, 2019) for each run using the validation data sets. We will
+then calculate the mean AUC-ROC and AUC-PR for the **n** iterations.
 
-    // Create a land mask using SRTM elevation data.
-    var watermask =  ee.Image("USGS/SRTMGL1_003").gt(0);
+It is important to check that you have a sufficient number of points for
+model validation at each run. Because the final number of points depends
+on the random split of spatial blocks, you want to make sure there are
+enough presence and pseudo-absence points for model validation.
 
-    // Update NDVI mask with the land mask.
-    var maskedndvi_1 = ndvi_1.updateMask(watermask);
+    /////////////////////////////////////
+    // Section 7 - Accuracy assessment
+    /////////////////////////////////////
 
-    // Display the masked result.
-    Map.addLayer(maskedndvi_1, {min:0, max:1}, 'NDVI masked');
+    // Extract testing/validation data sets
+    var TestingDatasets = ee.List.sequence(3,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+                          return results.get(x)});
 
-Masks can be particularly useful in cases where you cannot find images
-that are cloud free and you need to mask those pixels for analysis. We
-will explore more of these type of operations using the image metadata
-on pixel quality to create cloud masks for different satellites in
-following chapters.
+    // Double check that you have a satisfactory number of points for model validation
+    print('Number of presence and pseudo-absence points for model validation', ee.List.sequence(0,ee.Number(numiter).subtract(1),1)
+    .map(function(x){
+      return ee.List([ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',1)).size(),
+             ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',0)).size()]);
+    })
+    );
 
-### Working with features
+    // Define functions to estimate sensitivity, specificity and precision at different thresholds.
+    function getAcc(img,TP){
+      var Pr_Prob_Vals = img.sampleRegions({collection: TP, properties: ['PresAbs'], scale: GrainSize, tileScale: 16});
+      var seq = ee.List.sequence({start: 0, end: 1, count: 25});
+      return ee.FeatureCollection(seq.map(function(cutoff) {
+      var Pres = Pr_Prob_Vals.filterMetadata('PresAbs','equals',1);
+      // true-positive and true-positive rate, sensitivity  
+      var TP =  ee.Number(Pres.filterMetadata('classification','greater_than',cutoff).size());
+      var TPR = TP.divide(Pres.size());
+      var Abs = Pr_Prob_Vals.filterMetadata('PresAbs','equals',0);
+      // false-negative
+      var FN = ee.Number(Pres.filterMetadata('classification','less_than',cutoff).size());
+      // true-negative and true-negative rate, specificity  
+      var TN = ee.Number(Abs.filterMetadata('classification','less_than',cutoff).size());
+      var TNR = TN.divide(Abs.size());
+      // false-positive and false-positive rate
+      var FP = ee.Number(Abs.filterMetadata('classification','greater_than',cutoff).size());
+      var FPR = FP.divide(Abs.size());
+      // precision
+      var Precision = TP.divide(TP.add(FP));
+      // sum of sensitivity and specificity
+      var SUMSS = TPR.add(TNR);
+      return ee.Feature(null,{cutoff: cutoff, TP:TP, TN:TN, FP:FP, FN:FN, TPR:TPR, TNR:TNR, FPR:FPR, Precision:Precision, SUMSS:SUMSS});
+      }));
+    }
 
-In addition to the raster datasets, we can use vector data in GEE.
-Vector data is handled with the Geometry type. Geometries in Earth
-Engine can be **Point** (a list of coordinates in some projection),
-**LineString** (a list of points), **LinearRing** (a closed LineString),
-and **Polygon** (a list of LinearRings where the first is a shell and
-subsequent rings are holes). **MultiPoint**, **MultiLineString**, and
-**MultiPolygon** are also supported.
+    // Calculate AUC of the Receiver Operator Characteristic
+    function getAUCROC(x){
+      var X = ee.Array(x.aggregate_array('FPR'));
+      var Y = ee.Array(x.aggregate_array('TPR')); 
+      var X1 = X.slice(0,1).subtract(X.slice(0,0,-1));
+      var Y1 = Y.slice(0,1).add(Y.slice(0,0,-1));
+      return X1.multiply(Y1).multiply(0.5).reduce('sum',[0]).abs().toList().get(0);
+    }
 
-#### Geometries and features
+    function AUCROCaccuracy(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return getAUCROC(Acc);
+    }
 
-You can create Geometries using the Code Editor geometry tools, as you
-did at the beginning of the chapter to define your study area. However,
-you can also use code to create geometries, by providing a list of
-coordinates. The following code will create the polygon representing the
-study area defined earlier. All we need is a list of pair of
-coordinates, indicating the vertices of the polygon. Check that the
-first and last coordinates are the same.
 
-    var polygon = ee.Geometry.Polygon([
-      [[97.58, 9.32], [100.43, 9.32], [100.43, 14.43], [97.58, 14.43], [97.58, 9.32]]
-    ]);
+    var AUCROCs = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(AUCROCaccuracy);
+    print('AUC-ROC:', AUCROCs);
+    print('Mean AUC-ROC', AUCROCs.reduce(ee.Reducer.mean()));
 
-Geometries can then be converted into features. A **Feature** is an
-object with a geometry property storing a **Geometry** object (or null)
-and a **property** storing a dictionary of other properties. In order to
-create a feature, you need to provide a geometry, but also a dictionary
-with other properties of interest.
 
-    var polyFeature = ee.Feature(polygon, {Area: 'Tanintharyi'});
+    // Calculate AUC of Precision Recall Curve
+    function getAUCPR(roc){
+      var X = ee.Array(roc.aggregate_array('TPR'));
+      var Y = ee.Array(roc.aggregate_array('Precision')); 
+      var X1 = X.slice(0,1).subtract(X.slice(0,0,-1));
+      var Y1 = Y.slice(0,1).add(Y.slice(0,0,-1));
+      return X1.multiply(Y1).multiply(0.5).reduce('sum',[0]).abs().toList().get(0);
+    }
 
-**Geometry** and **Feature** objects can be printed or added to the map
-similarly to images using `Map.addLayer()`. The default visualization
-parameters will display vectors with solid black lines and semi-opaque
-black fill. You can change the colors similarly to images.
+    function AUCPRaccuracy(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return getAUCPR(Acc);
+    }
 
-    print(polyFeature);
-    Map.addLayer(polyFeature, {}, 'Study area');
-    Map.addLayer(polyFeature, {color: 'red'}, 'Study area - red');
+    var AUCPRs = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(AUCPRaccuracy);
+    print('AUC-PR:', AUCPRs);
+    print('Mean AUC-PR', AUCPRs.reduce(ee.Reducer.mean()));
 
-#### Feature collections
+Accuracy assessment results are:
 
-Similar to image collections, you can create a feature collection, that
-is as the name implies, a collection of features. To do this, we need to
-apply `ee.FeatureCollection()` on a list of features. For instance, we
-can create a list of feature points, each of which represents a town
-with its coordinate (the geometry) and a dictionary with the name of the
-town. We can then combine all the town into a feature collection.
+<table>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>AUC-ROC</th>
+<th>AUC-PR</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Run 1</td>
+<td>0.95</td>
+<td>0.78</td>
+</tr>
+<tr class="even">
+<td>Run 2</td>
+<td>0.88</td>
+<td>0.81</td>
+</tr>
+<tr class="odd">
+<td>Run 3</td>
+<td>0.79</td>
+<td>0.77</td>
+</tr>
+<tr class="even">
+<td>Run 4</td>
+<td>0.96</td>
+<td>0.88</td>
+</tr>
+<tr class="odd">
+<td>Run 5</td>
+<td>0.97</td>
+<td>0.92</td>
+</tr>
+<tr class="even">
+<td>Run 6</td>
+<td>0.96</td>
+<td>0.78</td>
+</tr>
+<tr class="odd">
+<td>Run 7</td>
+<td>0.87</td>
+<td>0.82</td>
+</tr>
+<tr class="even">
+<td>Run 8</td>
+<td>0.97</td>
+<td>0.91</td>
+</tr>
+<tr class="odd">
+<td>Run 9</td>
+<td>0.94</td>
+<td>0.83</td>
+</tr>
+<tr class="even">
+<td>Run 10</td>
+<td>0.83</td>
+<td>0.78</td>
+</tr>
+<tr class="odd">
+<td><strong>Mean</strong></td>
+<td><strong>0.91</strong></td>
+<td><strong>0.83</strong></td>
+</tr>
+</tbody>
+</table>
 
-    // Make a list of Features
-    var feature_list = [
-      ee.Feature(ee.Geometry.Point(98.62, 12.44), {name: 'Myeik'}),
-      ee.Feature(ee.Geometry.Point(98.76, 11.25), {name: 'Bokpyin'}),
-      ee.Feature(ee.Geometry.Point(98.52, 13.39), {name: 'Pe Det'})
-    ];
+In the next section we will extract sensitivity (correct predictions of
+the occurrence) and specificity (correct predictions of the absence;
+Fielding & Bell, 1997). These metrics require defining a threshold. For
+each iteration, we use the threshold that maximizes the sum of
+sensitivity and specificity. This threshold has been shown to perform
+well with presence-only data (Liu, Newell, & White, 2016).
 
-    // Create a FeatureCollection from the list, print it and display it on the map
-    var Towns = ee.FeatureCollection(feature_list);
-    print(Towns);
-    Map.addLayer(Towns, {color: 'blue'}, 'Towns');
+    // Function to extract other metrics
+    function getMetrics(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return Acc.sort({property:'SUMSS',ascending:false}).first();
+    }
 
-Google Earth Engine offers several **Feature collections** through the
-Data Catalog that can be imported. They are mostly data sets for the USA
-but, in addition to the protected areas we used, there are also country
-boundaries and ecoregions, among others. This is a much smaller catalog
-than the one for image collections, but the amount of data available
-grows every day.
+    // Extract sensitivity, specificity and mean threshold values
+    var Metrics = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(getMetrics);
+    print('Sensitivity:', ee.FeatureCollection(Metrics).aggregate_array("TPR"));
+    print('Specificity:', ee.FeatureCollection(Metrics).aggregate_array("TNR"));
 
-#### Filtering feature collections
+    var MeanThresh = ee.Number(ee.FeatureCollection(Metrics).aggregate_array("cutoff").reduce(ee.Reducer.mean()));
+    print('Mean threshold:', MeanThresh);
 
-Feature collection can be large, and similar to image collections, we
-may need to filter them. We will also use filters to do this. Here, we
-will load the World Database on Protected Areas and filter it to our
-study area, similarly to what we did before to filter the Landsat image
-collection.
+<table>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Sensitivity</th>
+<th>Specificity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Run 1</td>
+<td>0.82</td>
+<td>0.94</td>
+</tr>
+<tr class="even">
+<td>Run 2</td>
+<td>1.00</td>
+<td>0.63</td>
+</tr>
+<tr class="odd">
+<td>Run 3</td>
+<td>0.89</td>
+<td>0.63</td>
+</tr>
+<tr class="even">
+<td>Run 4</td>
+<td>0.93</td>
+<td>0.91</td>
+</tr>
+<tr class="odd">
+<td>Run 5</td>
+<td>0.96</td>
+<td>0.87</td>
+</tr>
+<tr class="even">
+<td>Run 6</td>
+<td>0.90</td>
+<td>0.96</td>
+</tr>
+<tr class="odd">
+<td>Run 7</td>
+<td>0.75</td>
+<td>0.84</td>
+</tr>
+<tr class="even">
+<td>Run 8</td>
+<td>0.92</td>
+<td>0.90</td>
+</tr>
+<tr class="odd">
+<td>Run 9</td>
+<td>0.89</td>
+<td>0.82</td>
+</tr>
+<tr class="even">
+<td>Run 10</td>
+<td>0.91</td>
+<td>0.65</td>
+</tr>
+<tr class="odd">
+<td><strong>Mean</strong></td>
+<td><strong>0.90</strong></td>
+<td><strong>0.81</strong></td>
+</tr>
+</tbody>
+</table>
 
-    var PA = ee.FeatureCollection('WCMC/WDPA/current/polygons');
+Finally, we can create a binary potential distribution map using the
+mean threshold from the 10 model iterations.This operation is more
+computationally demanding and is likely to give a memory limit error if
+trying to add the resulting binary image directly to the interactive
+map. If memory limits are reached, it is then necessary to use the batch
+mode on GEE, directly exporting the output to Google Drive or Google
+Cloud Storage.
 
-    var PA_filtered = PA.filterBounds(Bounds);
+    ////////////////////////////////////////////////////////////////////////////////
+    // Section 8 - Create a custom binary distribution map based on best threshold
+    ////////////////////////////////////////////////////////////////////////////////
 
-You can now check how many protected areas are within the study area by
-using `size()` which returns the number of entries in a dictionary.
+    // Calculating the potential distribution map based on the threshold 
+    // that maximizes the sum of sensitivity and specificity is computationally intensive and
+    // for large number of iterations may need to be executed using batch mode.
+    // In batch mode, the final image needs to exported to Google Drive and opened in 
+    // another software for visualization (or imported to GEE as an asset for visualization.
+    // Transform probability model output into a binary map using the defined threshold and set NA into -9999
+    // Transform probability model output into a binary map using the defined threshold and set NA into -9999
+    var DistributionMap2 = ModelAverage.gte(MeanThresh);
 
-    print('Count after filter:', PA_filtered.size());
+In the next section we will show how to export results to Google Drive
+to then display it on a third party software.
 
-Now, let’s filter the protected areas on our study area that are Marine
-National Parks. We can use the `ee.Filter.eq()` (eq for equal) function
-to retain only those protected areas designated as Marine National Park
-and check how many there are. As with the `filterMetadata`, you need to
-provide the property name of the feature to filter on and the value to
-compare against.
+<figure>
+<img src="./Figures/Fig10.png"
+alt="Figure 10. Potential distribution of Bradypus variegatus calculated using a custom threshold. The final map was exported to Google Drive and displayed using QGIS." />
+<figcaption aria-hidden="true">Figure 10. Potential distribution of
+<em>Bradypus variegatus</em> calculated using a custom threshold. The
+final map was exported to Google Drive and displayed using
+QGIS.</figcaption>
+</figure>
 
-    var MarineNatParks = PA_filtered.filter(ee.Filter.eq('DESIG', 'Marine National Park'));
+### Exporting results
 
-    print('Number of Marine National Parks:', MarineNatParks.size());
+Here, we present code to export the final probability maps as well as
+the accuracy metrics, training and validation data sets used for each
+model. Note that there are other options to export data in GEE (see the
+<https://developers.google.com/earth-engine/guides/exporting/>(user
+guide) for other ways to export data).
 
-### Mapping functions over feature collections
+    //////////////////////////////////////////////////////
+    // Section 9 - Export outputs
+    //////////////////////////////////////////////////////
 
-Similar to what we learned about mapping functions over image
-collections, we can do it on feature collections. Let’s say you are
-interested in calculating the area of each Marine National Park. We will
-do this as an exercise even though the Protected Area database already
-has a property with the area of each feature.
+    // Export final model predictions to drive
 
-First, we define a function to apply to each feature. The function
-calculates the area using the `area()` function. We then divide this by
-1000000 to obtain area in square kilometers. The resulting number is set
-to each feature as a new property that we called areakm2.
-
-Second, we map the `addArea` function we created across the
-**MarineNatParks** feature collection.
-
-    // Compute the area of each National Park in km2
-
-    // Function to compute patch area and perimeter and add it as a property
-    var addArea = function(feature) {
-      return feature.set({areakm2: feature.area().divide(1000 * 1000)});
-    };
-
-    // Map the area using the function over the FeatureCollection
-    var Area = MarineNatParks.map(addArea);
-
-#### Reducing feature collections
-
-We can also apply reducers to feature collections. The idea is the same
-than for image collections, aggregate data over the collection. Here, we
-use the `reduceColumns()` function on the Area feature collection
-previously created. We need to specify the reducer we want to apply, in
-this case the `ee.Reducer.mean()`, and the property or list of
-properties we want to reduce, in this case `areakm2`. When printing this
-object we have a new property with the mean area of all National Parks
-in the collection.
-
-    // Calculate the mean area across parks
-    print('Mean National Park area (km2):', Area.reduceColumns(ee.Reducer.mean(), ['areakm2']));
-
-#### Displaying fature and feature collections on the map
-
-Finally, you can display the protected areas and Marine National Parks
-on the map. We use the same function than more images,
-`Map.addLayers()`.
-
-    Map.addLayer(PA_filtered, {color: 'green'}, 'Protected Areas');
-    Map.addLayer(MarineNatParks, {color: 'blue'}, 'Marine NP'); 
-
-### Exporting resuts
-
-Lastly, at the end of an analysis you may want to export your results
-and data products. There are many reasons you may want to do this. The
-most obvious is to create figures and maps using another software, such
-as [QGIS](https://qgis.org/en/site/) or to use raster and vector
-products in other analysis in software such as
-[R](https://www.r-project.org/).
-
-There are different type of products that can be exported from GEE.
-These include images, map tiles, features, tables and videos. The data
-can be exported to your linked Google Drive account, as a new Earth
-Engine asset that will appear on your asset manager, or to Google Cloud
-Storage (Note this is a fee-based service). We will not cover Cloud
-Storage in this tutorial, but you can learn about Cloud Storage
-[here](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup?hl=en)
-and how to set projects
-[here](https://developers.google.com/earth-engine/cloud/projects?hl=en).
-
-Here, we are going to demonstrate how to export an image and a feature
-collection. We will see more about these functions along the different
-chapters.
-
-#### Exporting an image
-
-Imagine that you want to create a map of your study area displaying the
-NDVI values across the region. You can then export the final NDVI image
-we created previously **maskedndvi\_1**. We will export the image to
-Google Drive, where it can be downloaded to be used in other software.
-For this, we will use the function `Export.image.toDrive()`.
-
-All export functions have a series of arguments that we need to
-complete. First, we need to specify the `image` we want to export, in
-our case the **maskedndvi\_1**. Second, we need to provide a
-`description` that will be the file name when saved in Google Drive.
-Then we need a `scale` parameter, the spacial resolution or pixel size
-in meters, and a `region`, a ee.Geometry object that defines your area
-of interest. In our example, we have been using **Bounds**. Another
-important argument is the `maxPixels`. The default is 1e8 pixels, but
-you can increase this number as needed. Note that when the image is too
-big, it will be exported in tiles as 2 or more images that then you can
-combine. The image default output is **GeoTIFF**, but the **TFRecord**
-format is also supported.
-
-There are several other optional arguments for this functions. Here we
-show two extra arguments. The `folder` within your Google Drive to keep
-it organized (By default the image will be saved in the Drive root
-directory) and the `crs`. The coordinate reference system is optional,
-but we include it here because it is important to keep track of the crs
-used when exporting data to use in other GIS software.
-
-Here is the code:
-
-    // Export raster images to Google Drive
+    // Averaged habitat suitability
     Export.image.toDrive({
-      image: maskedndvi_1,  // Export the masked NDVI as an example
-      region: Bounds,
-      description: 'NDVI-30m',
-      folder: 'GIS',
-      scale: 30,
-      fileFormat: 'GeoTIFF',
+      image: ModelAverage, //Object to export
+      description: 'HSI', //Name of the file
+      scale: GrainSize, //Spatial resolution of the exported raster
       maxPixels: 1e10,
-      crs: 'EPSG:4326'
+      region: AOI //Area of interest
     });
 
-In other cases, you may be interested in saving an image as an asset, so
-you can use it later in other analyses. To do this, we will use the
-function `Export.image.toAsset()`. The difference with exporting to
-Google Drive is that we now need to provide an `assetId` as an extra
-parameter and that we do not need to specify a file format anymore.
-
-    // Export raster image to asset
-    Export.image.toAsset({
-      image: maskedndvi_1,  // Export the masked NDVI as an example
-      region: Bounds,
-      description: 'NDVI-30m',
-      assetId: 'NDVI30mExport',
-      scale: 30,
+    // Export final binary model based on a mayority vote
+    Export.image.toDrive({
+      image: DistributionMap, //Object to export
+      description: 'PotentialDistribution', //Name of the file
+      scale: GrainSize, //Spatial resolution of the exported raster
       maxPixels: 1e10,
-      crs: 'EPSG:4326'
+      region: AOI //Area of interest
     });
 
-There are other optional arguments that can be modified. Look into the
-Export of the Docs tab to explore other arguments.
+    // Export final binary model based on the threshold that maximises the sum of specificity and sensitivity
+    Export.image.toDrive({
+      image: DistributionMap2.unmask(-9999),
+      description: 'PotentialDistributionThreshold',
+      scale: GrainSize,
+      maxPixels: 1e10,
+      region: AOI
+    });
 
-### Exporting a feature collection and tables
 
-Similar to images, we can export feature collections or tabular data,
-such as a future collection with no geometry, as CSV, ESRI Shapefile
-(SHP), GeoJSON, KML, KMZ or TFRecord formats. Again, we can export to
-Google Drive using the function `Export.table.toDrive()` or as an asset
-`export.table.toAsset()`. The arguments that we need to specify include
-the `collection` to export and a `description` with the name for the
-resulting file. When exporting to Google Drive we also need to provide
-the `fileFormat` and we will also specify a `folder` in Google Drive.
-When exporting as an asset, we need to provide the `assetId`.
+    // Export Accuracy Assessment Metrics
 
-Here we will export the marine national parks (the object
-**MarineNatParks**) as a shapefile and also save it as an asset.
-
-    // Export feature to Google Drive
     Export.table.toDrive({
-      collection: MarineNatParks,  // Export the marine parks as an example
-      description: 'Marine_Parks_Tanintharyi',
-      fileFormat: 'SHP',
-      folder: 'GIS'
-    });
-
-    // Export feature to asset
-    Export.table.toAsset({
-      collection: MarineNatParks,  // Export the marine parks as an example
-      description: 'Marine_Parks_Tanintharyi',
-      assetId: 'MarineParksExport'
-    });
-
-    // Export table data
-    Export.table.toDrive({
-      collection: Area,
-      description: 'exportMarineNationalParkArea',
+      collection: ee.FeatureCollection(AUCROCs
+                            .map(function(element){
+                            return ee.Feature(null,{AUCROC:element})})),
+      description: 'AUCROC',
       fileFormat: 'CSV',
-      folder: 'GIS',
-      selectors: ['areakm2'] //A list of properties to include in the export; either a single string with comma-separated names or a list of strings.
     });
 
-Finally, we will export the Marine National Park area as table data in a
-CSV format. This object will not have a geometry associated, only the
-area we calculated for each feature. For this we use the
-`Export.table.toDrive()` we used before with the difference that now the
-`fileFormat` is CSV. We also use the `selectors` argument to specify the
-property we want to export, NAME and areakm2 of each park. You can add
-other properties if wanted.
-
-    // Export table data
     Export.table.toDrive({
-      collection: Area,
-      description: 'exportMarineNationalParkArea',
+      collection: ee.FeatureCollection(AUCPRs
+                            .map(function(element){
+                            return ee.Feature(null,{AUCPR:element})})),
+      description: 'AUCPR',
       fileFormat: 'CSV',
-      folder: 'GIS',
-      selectors: ['NAME','areakm2'] //A list of properties to include in the export; either a single string with comma-separated names or a list of strings.
     });
 
-Note that to complete the export process you need to submit the task by
-clicking the `run` button on the Tasks tab on the right panel (Fig. 8).
-When the process is completed, the taks changes to a blue color as shown
-in Fig. 8.
+    Export.table.toDrive({
+      collection: ee.FeatureCollection(Metrics),
+      description: 'Metrics',
+      fileFormat: 'CSV',
+    });
 
-<center>
+    // Export training and validation data sets
 
-<figure>
-<img src="FigCh2/Figure8.png" style="width:60.0%"
-alt="Figure 8. Exporting images and features." />
-<figcaption aria-hidden="true">Figure 8. Exporting images and
-features.</figcaption>
-</figure>
+    // Extract training datasets
+    var TrainingDatasets = ee.List.sequence(1,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
 
-</center>
+    // If you are interested in exporting any of the training or testing datasets used for modeling,
+    // you need to extract the feature collections from the SDM output list and export them.
+    // Here is an example for exporting the training and validation data sets from the first iteration. 
+    // For other iterations you need to change the number in the get function. In JavaScript the first element of the list is indexed by 0.
 
-You will see the csv file in your Google Drive (Fig. 9).
+    Export.table.toDrive({
+      collection: TrainingDatasets.get(0),
+      description: 'TestingDataRun1',
+      fileFormat: 'CSV',
+    });
 
-<center>
+    Export.table.toDrive({
+      collection: TestingDatasets.get(0),
+      description: 'TestingDataRun1',
+      fileFormat: 'CSV',
+    });
+    /*
+    */
 
-<figure>
-<img src="FigCh2/Figure9.png" style="width:80.0%"
-alt="Figure 9. CSV file exported with name and area of Marine National Parks." />
-<figcaption aria-hidden="true">Figure 9. CSV file exported with name and
-area of Marine National Parks.</figcaption>
-</figure>
+------------------------------------------------------------------------
 
-</center>
+## Case Study 2: Accounting for temporal resolution in species distribution models
 
-### Conclusion
+One main limitation in many SDMs is the lack of consideration for
+temporal resolution when modeling habitat suitability and species
+distributions (Araújo et al., 2019). We used *Cebus capucinus* as an
+example to demonstrate a framework that takes advantage of GEE to match
+the observation date for each presence record to the raster image from a
+collection that is closest in time. For example, we could extract the
+normalized difference vegetation index (NDVI) at an occurrence location
+from the satellite image that is closest in time to that species
+observation.
 
-So far, we have seen some common functions to apply on images and
-features. There are an enormous amount of possible operations that can
-be applied to filter collections, calculate new bands, etc. As we
-progress with different types of analyses, you will get more
-familiarized with the different possible operations.
+### Species data and AOI
 
-## Land-Cover Land-use classification in Google Earth Engine
+We obtained occurrence data from GBIF (GBIF.org (27 January 2021)
+<https://doi.org/10.15468/dl.qus4ha>). We retained only georeferenced
+records with a coordinate uncertainty &lt; 250 m.
 
-In this chapter we will learn how to perform a Land-Cover Land-use
-classification using Google Earth Engine.
+For this example we will model *Cebus capucinus* distribution in Panama
+and Costa Rica, where most occurrence records are.
 
-There are two main types of classification, supervised and unsupervised
-classifications. In the unsupervised classification, you let the
-algorithm define the land cover classes based on the data. In the
-supervised classification you will define the land cover classes and
-train the algorithm.
+As a note, some authors consider the subspecies *Cebus capucinus
+imitator* and *Cebus capucinus capucinus* two distinct species which
+distribution split in central Panama (Mittermeier et al., 2013). In this
+study, we consider *Cebus capucinus* as one taxon.
 
-Here, we will work with the supervised classification process.
+For this example, we will manually define a study area geometry
+encompassing the countries of Costa Rica and Panama.
 
-### Define your study area
+    ////////////////////////////////////
+    // Section 1 - Species data and AOI
+    ////////////////////////////////////
 
-We will start with a fresh new script. As before, set up your name, date
-and topic of the analysis.
+    var Data = ee.FeatureCollection('users/ramirocrego84/CebusCapucinus');
 
-    //////////////////////////////////////////////////
-    // My name
-    // Date
-    // Land cover Land use supervised classification
-    //////////////////////////////////////////////////
-
-The next step is to define your area of interest or study area. Remember
-you can do this using the drawing tools or you can define a polygon
-using code.
-
-    //Specify 'Focal Area' for your impact study
-    var StudyArea = ee.Geometry.Polygon([
-      [96.20400705077832,23.942516412253614],
-      [96.3197926495332,23.942516412253614],
-      [96.3197926495332,24.021486550182036],
-      [96.20400705077832,24.021486550182036],
-      [96.20400705077832,23.942516412253614]
+    var AOI = ee.Geometry.Polygon([
+      [-86.25662272529605,6.799166493750054],
+      [-77.15994303779605,6.799166493750054],
+      [-77.15994303779605,11.171211677305884],
+      [-86.25662272529605,11.171211677305884],
+      [-86.25662272529605,6.799166493750054]
     ]);
 
-Next, center the map into the study area that you just defined.
+    print('Original data size:', Data.size());
+    var Data = Data.filter(ee.Filter.bounds(AOI));
 
-    Map.centerObject(StudyArea);
+    // Add border of study area to the map
+    var outline = ee.Image().byte().paint({
+      featureCollection: AOI, color: 1, width: 3});
+    Map.addLayer(outline, {palette: 'FF0000'}, "Study Area");
 
-### Loading the satellite imagery
-
-The main component of any land cover classification is the satellite
-imagery. The information on the different bands of the image is what we
-are going to use to classify the different types of land use.
-
-Here, we will work with Landsat 8. At this point, you should be familiar
-with some basic functions regarding this data set, such as, loading the
-image collection and filtering the image collection.
-
-We will get the image cleaning process to another level of complexity.
-Before, we removed all images with clouds to avoid having clouds that
-will affect the classification process (You want to have a clear image
-of the land surface.). This time, we are going to use the metadata of
-the Landsat image to mask all the pixels that contain clouds or have a
-bad quality.
-
-> Note that we are working with Landsat 8. There are other Landsat
-> products that require some modifications to the filters. We will
-> examine that later on when classifying images from the past to access
-> land cover change.
-
-What we need to do first is create a function that will mask all pixels
-that correspond to clouds or cloud shadows. The information is contained
-in a band called **QA_PIXEL**.
-
-This function first creates a mask converting all pixels from the
-*QA_PIXEL* band of the Landsat image (Fig. 1) that correspond to cloud
-and cloud shadows
-`image.select(['QA_PIXEL']).bitwiseAnd(Math.pow(2,3)).` into zeros
-`eq(0)`, the mask. It then applies the mask to all the bands on that
-image.
-
-<center>
+    // Center map to the area of interest
+    Map.centerObject(AOI, 6); //Number indicates the zoom level
 
 <figure>
-<img src="FigCh3/Figure1.png" style="width:90.0%"
-alt="Figure 1. Landsat 8 Surface Reflectance image." />
-<figcaption aria-hidden="true">Figure 1. Landsat 8 Surface Reflectance
-image collection.</figcaption>
+<img src="./Figures/Fig11.png"
+alt="Figure 11. Defined area of interest to study change in Cebus capucinus habitat suitability." />
+<figcaption aria-hidden="true">Figure 11. Defined area of interest to
+study change in Cebus capucinus habitat suitability.</figcaption>
 </figure>
 
-</center>
+We will use data between 2003 and 2018 for model fitting, after
+filtering the data to retain a single record per year from each 250 m
+pixel. To do so, we need to run the `removeduplicate()` function for
+each year at the specified grain size and then merge filtered data from
+all years back together.
 
-The expression `Math.pow(2,3)` obtains the bit value that identifies the
-pixel with cloud of cloud shadow. You could do the same for snow, water,
-etc.
+### Define spatial resolution and remove duplicates
 
-    // Function to mask clouds based on QA values from the Landsat Surface Reflectance Code (LaSRC) - for Landsat 8
-    var lasrcMask = function (image) {
-        var mask = image.select(['QA_PIXEL']).bitwiseAnd(Math.pow(2,3)).eq(0).and(  // Cloud shadow
-                   image.select(['QA_PIXEL']).bitwiseAnd(Math.pow(2,5)).eq(0));  // Cloud
-        return image.updateMask(mask);
+    //////////////////////////////////////////////////////////////
+    // Section 2 - Define spatial resolution and remove duplicates
+    //////////////////////////////////////////////////////////////
+
+    // Define spatial resolution to work with (m)
+    var GrainSize = 250;
+
+    function RemoveDuplicates(data){
+      var randomraster = ee.Image.random().reproject('EPSG:4326', null, GrainSize);
+      var randpointvals = randomraster.sampleRegions({collection:ee.FeatureCollection(data), scale: 10, geometries: true});
+      return randpointvals.distinct('random');
+    }
+
+    // Filter by year and eliminate points withing the same pixel at each year
+    var Data03 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2003-01-01', '2003-12-31')));
+    var Data04 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2004-01-01', '2004-12-31')));
+    var Data05 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2005-01-01', '2005-12-31')));
+    var Data06 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2006-01-01', '2006-12-31')));
+    var Data07 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2007-01-01', '2007-12-31')));
+    var Data08 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2008-01-01', '2008-12-31')));
+    var Data09 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2009-01-01', '2009-12-31')));
+    var Data10 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2010-01-01', '2010-12-31')));
+    var Data11 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2011-01-01', '2011-12-31')));
+    var Data12 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2012-01-01', '2012-12-31')));
+    var Data13 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2013-01-01', '2013-12-31')));
+    var Data14 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2014-01-01', '2014-12-31')));
+    var Data15 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2015-01-01', '2015-12-31')));
+    var Data16 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2016-01-01', '2016-12-31')));
+    var Data17 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2017-01-01', '2017-12-31')));
+    var Data18 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2018-01-01', '2018-12-31')));
+
+    // Combine all datasets
+    var Data2 = Data03.merge(Data04).merge(Data05).merge(Data06).merge(Data07)
+                .merge(Data08).merge(Data09).merge(Data10).merge(Data11).merge(Data12)
+                .merge(Data13).merge(Data14).merge(Data15).merge(Data16).merge(Data17).merge(Data18);
+
+### Predictor Variables
+
+We will use mean annual temperature, annual precipitation (Hijmans et
+al. 2005), elevation (Farr et al. 2007) and percentage tree cover (Terra
+MODIS VCF, 250 m resolution) as predictor variables. We set the grain
+size of the analysis at 250 m resolution to match the MODIS data.
+
+    //////////////////////////////////////////////
+    // Section 3 - Selecting Predictor Variables
+    //////////////////////////////////////////////
+
+    // Load bioclimatic data set
+    var BIO = ee.Image("WORLDCLIM/V1/BIO");
+
+    // Load elevation data 
+    var Elevation = ee.Image("USGS/SRTMGL1_003");
+
+    // Combine bands into a single image
+    var predictors = BIO.addBands(Elevation);
+
+    // Load MODIS surface reflectance
+    var start = ee.Date('2003-01-01');
+    var end = ee.Date('2020-01-01');
+    var MODIS = ee.ImageCollection("MODIS/006/MOD44B")
+                 .filterDate(start, end);
+
+    // Mask ocean from predictor variables
+    var watermask =  Elevation.gt(0); //Create a water mask
+    var predictors = predictors.updateMask(watermask).clip(AOI);
+    var bands = ['bio01','bio12','elevation','Percent_Tree_Cover'];
+
+    Map.addLayer(predictors, {bands:['elevation'], min: 0, max: 5000,  palette: ['000000','006600', '009900','33CC00','996600','CC9900','CC9966','FFFFFF',]}, 'Elevation (m)', 0);
+    Map.addLayer(MODIS.first(), {bands:['Percent_Tree_Cover'], min: 0, max: 100, palette:'white,yellow,green'}, 'Percent_Tree_Cover', 0); 
+
+For each data location, we need to identify the closest recorded MODIS
+image in time and extract the percentage tree cover value. We need to
+define a series of function to do this. In this case, because the data
+product is produced yearly, we define a max difference of 360 days.
+
+    /////////////////////////////////////////////////////////////////////////////////
+    // Section 4 - Match each point to the closest image in time and extract the pixel value
+    /////////////////////////////////////////////////////////////////////////////////
+
+    // Function to add property with time in milliseconds to the data
+    var add_date = function(feature) {
+      return feature.set({date_millis: ee.Date(ee.String(feature.get("Date"))).millis()});
+    };
+    var Data2 = Data2.map(add_date);
+
+    // Join Image and Points based on a maxDifference Filter within a day
+    var tempwin = 360;  // set time window (days)
+
+    var maxDiffFilter = ee.Filter.maxDifference({
+      difference: tempwin * 24 * 60 * 60 * 1000,  // 8 day * hr * min * sec * milliseconds
+      leftField: 'date_millis', //date data was collected
+      rightField: 'system:time_start' // image date
+    });
+
+    // Define the join.
+    var saveBestJoin = ee.Join.saveBest({
+      matchKey: 'bestImage',
+      measureKey: 'timeDiff'
+    });
+
+    // Apply the join
+    var Data_match = saveBestJoin.apply(Data2, MODIS, maxDiffFilter);
+    //print(Data_match.limit(2)) //Activate to visualize results
+
+    // Function to add property with Percent Tree Cover value from the matched MODIS image
+    var add_value = function(feature) {
+       var img1 = ee.Image(feature.get('bestImage')).select('Percent_Tree_Cover');
+       var point = feature.geometry();
+       var pixel_Value = img1.sample({region: point, scale: 10, tileScale: 15, dropNulls: false});
+       return feature.set({Percent_Tree_Cover: pixel_Value.first().get('Percent_Tree_Cover')});
     };
 
-We are also going to create a function to `select()` and `rename()`
-certain bands from the Landsat image. This may not be really useful if
-you are working with only one Landsat product, but because different
-Landsat satellites have different bands, it became important for more
-advanced analysis that needs to integrate images from different
-satellites (Landsat 4 and Landsat 8 for instance.).
+    var DataFinal = Data_match.map(add_value);
+
+    // Remove points that were outside the MODIS image footprint (e.g., in the ocean)
+    var DataFinal = DataFinal.filter(ee.Filter.neq('Percent_Tree_Cover', null))
+
+    // Check the final number of presence locations for analysis
+    print('Presence data size:', DataFinal.size());
+    //print(DataFinal.limit(2)) //Activate to visualize results
+    Map.addLayer(DataFinal, {color:'red'}, 'Presence', 1)  //Add points to the map
+
+<figure>
+<img src="./Figures/Fig12.png"
+alt="Figure 12. Cebus capucinus presence locations." />
+<figcaption aria-hidden="true">Figure 12. <em>Cebus capucinus</em>
+presence locations.</figcaption>
+</figure>
+
+After all this process, we end up with 330 occurrence records.
+
+### Model fit
+
+The next step is to define an area to create pseudo-absences. We will
+first create an image where presence records are marked to avoid
+creating pseudo-absences in the same locations where we have known
+presences.
+
+    ///////////////////////////////////////////////////////////////////
+    // Section 5 - Defining area for creation of pseudo-absence points
+    ///////////////////////////////////////////////////////////////////
+
+    // Make an image out of the presence locations to mask from the area to generate pseudo-absences. This will impede having presence and pseudo-absences in a 1km around the presence location.
+    var mask = DataFinal
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(1000)).mask().neq(1).selfMask();
+
+    var AreaForPA = mask.updateMask(watermask).clip(AOI);
+    Map.addLayer(AreaForPA)
+
+To create a matching pseudo-absence location for each occurrence
+location, we generated a random pseudo-absence point within a 100 km
+buffer, extracting the percent tree cover from the VCF image that
+corresponded to the time period of the occurrence point. We repeated
+this process five times, resulting in five balanced datasets for each
+iteration, each with a different set of pseudo-absences.
+
+To do this, we defined a function that creates a random point within a
+100 km buffer and extracts the pixel value of the percent tree cover
+image. We then merge the presence data with the pseudo-absences.
+Finally, we extract the value for the other predictors, elevation, mean
+annual temperature, annual precipitation. Each of the 5 resulting
+training data sets is used to fit a random forest classifier.
+
+We pack all this into a function that we can map across a list of random
+seeds for each iteration of model fitting and validation.
+
+    ///////////////////////////
+    // Section 6 - Model fit
+    ///////////////////////////
+
+    // Define SDM function
+    function SDM(x) {
+        // Presence points
+        var PresencePoints = DataFinal.map(function(feature){return feature.set('PresAbs', 1)});
+        var PresencePoints = predictors.sampleRegions({collection: PresencePoints, properties: ['PresAbs', 'Percent_Tree_Cover'], scale: 250, tileScale: 4});
+        var npoints = PresencePoints.size();
+        
+        // Pseudoabsences
+        var PseudoAbs = DataFinal.map(function(feature){
+                            var img1 = ee.Image(feature.get('bestImage')).select('Percent_Tree_Cover');
+                            var pointbuff = feature.geometry().buffer(100000);
+                            var randpoints = AreaForPA.sample({region: pointbuff, scale: 10, numPixels: 30, seed:x, geometries: true, tileScale: 15, dropNulls: true}); // If error appears on drop null, increase the number of pixels
+                            var PTC = img1.sampleRegions({collection: randpoints, scale: 10, tileScale: 16, geometries: true});
+                            return PTC.first();
+                          });
+        var PseudoAbs = PseudoAbs.map(function(feature){return feature.set('PresAbs', 0)});
+        var PseudoAbsPoints = predictors.sampleRegions({collection: PseudoAbs, properties: ['PresAbs', 'Percent_Tree_Cover'], scale: 250, tileScale: 4, geometries: true});
+
+        // Merge points
+        var trainingData = PresencePoints.merge(PseudoAbsPoints);
+
+        // Classify using Random Forest
+        var rfClassifier = ee.Classifier.smileRandomForest(500).setOutputMode('PROBABILITY').train(trainingData, 'PresAbs', bands); 
+       
+        return ee.List([rfClassifier, trainingData]);
+    }
+
+We can now fit the models. We use a pre-defined list of random numbers
+for reproducibility of results.
+
+    // Define number of repetitions
+    var numiter = 5;
+
+    // Fit SDM
+    var results = ee.List([81,96,57,22,2]).map(SDM);
+
+    // Extract results from list
+    var results = results.flatten();
+    //print(results) //Activate this line to visualize all elements
+
+> In this example we are using 5 iterations. Adding more iterations
+> could cause a memory limit issue. If more iterations are desired, then
+> instead of adding resulting predictions to the interactive map, you
+> can directly export results to Google Drive (batch mode) to prevent
+> the computation from reaching the memory limit.
+
+### Accuracy assessment
+
+Because model predictions will vary each year due to changes in
+underlying predictor variables, we withheld data from 2019 for model
+validation. We use 2019 for out-of-sample model validation as this year
+had a large number of occurrence records and was the last year the MODIS
+VCF was available in GEE. We assume that if the model predicts well for
+withheld data in 2019, then the model likely performed well in other
+years and is useful for making predictions and studying change over
+time. We used 125 occurrence records and a set of 125 pseudo-absences
+randomly created across the study area (within a 100 km buffer around
+each occurrence location) to estimate the AUC-RP for each of the five
+individual model predictions using the percentage of tree cover for
+2019, together with mean annual temperature, annual precipitation and
+elevation as the predictor variables.
+
+We need to define the AUC-RP functions as we did in the previous
+example.
+
+    ////////////////////////////////////
+    // Section 7 - Accuracy assessment
+    ////////////////////////////////////
+
+    // Define functions to estimate sensitivity, specificity and precision.
+    function getAcc(img,TP){
+      var Pr_Prob_Vals = img.sampleRegions({collection: TP, properties: ['PresAbs'], scale: GrainSize, tileScale: 16});
+      var seq = ee.List.sequence({start: 0, end: 1, count: 25});
+      return ee.FeatureCollection(seq.map(function(cutoff) {
+      var Pres = Pr_Prob_Vals.filterMetadata('PresAbs','equals',1);
+      // true-positive and true-positive rate, sensitivity  
+      var TP =  ee.Number(Pres.filterMetadata('classification','greater_than',cutoff).size());
+      var TPR = TP.divide(Pres.size());
+      var Abs = Pr_Prob_Vals.filterMetadata('PresAbs','equals',0);
+      // true-negative rate, specificity  
+      var TNR = ee.Number(Abs.filterMetadata('classification','less_than',cutoff).size()).divide(Abs.size());
+      // false-positive and false-positive rate
+      var FP = ee.Number(Abs.filterMetadata('classification','greater_than',cutoff).size());
+      var FPR = FP.divide(Abs.size());
+      // precision
+      var Precision = TP.divide(TP.add(FP));
+      return ee.Feature(null,{TPR:TPR, FPR:FPR, Precision:Precision});
+      }));
+    }
+
+    // Calculate AUC of Precision Recall Curve
+    function getAUCPR(x){
+      var X = ee.Array(x.aggregate_array('TPR'));
+      var Y = ee.Array(x.aggregate_array('Precision')); 
+      var X1 = X.slice(0,1).subtract(X.slice(0,0,-1));
+      var Y1 = Y.slice(0,1).add(Y.slice(0,0,-1));
+      return X1.multiply(Y1).multiply(0.5).reduce('sum',[0]).abs().toList().get(0);
+    }
+
+    // Extract all model classifiers
+    var classifiers = ee.List.sequence(0,ee.Number(numiter).multiply(2).subtract(1),2)
+                      .map(function(x){return results.get(x)});
+                      
+    // We will use 2019 data to validate the model
+    var Data19 = RemoveDuplicates(Data.filter(ee.Filter.rangeContains('Date', '2019-01-01', '2019-12-31')));
+    var Presence19 = Data19.map(function(feature){return feature.set('PresAbs', 1)});
+    Map.addLayer(Presence19, {color:'red'}, 'Presence 2019', 1)  //Add points to the map
+
+    // Make an image out of the presence locations to mask from the area to generate pseudoabsences. This will impede having presence and pseudoabsences near the same pixel.
+    var mask2 = Presence19
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(1000));
+
+    // Limit pseudo-absences to a buffer around presence points. 
+    var buffer = 100000; // E.g., 100 km.
+    var AreaForPA2 = Data19.geometry().buffer(buffer);
+    var AreaForPA2 = mask2.mask().clip(AreaForPA2).updateMask(watermask).clip(AOI);
+
+    // Create random pseudo-absences
+    var Abs19 = AreaForPA2.sample({region: AOI, scale: GrainSize, numPixels: 1000, geometries: true}); //Because many points will on the ocean, we need to create more than needed.
+    var Abs19 = Abs19.randomColumn().sort('random').limit(Presence19.size()); // We keep the same amount of pseudoabsences than presences
+    var Abs19 = Abs19.map(function(feature){
+        return feature.set('PresAbs', 0);
+        });
+    print('Presence 2019', Presence19.size());
+    print('Pseudo-absences 2019', Abs19.size());
+
+    // Merge presence and pseudo-absences
+    var testingdata2019 = Presence19.merge(Abs19);
+
+    // Create the predictor variables for 2019
+    var mod2019 = MODIS.filterDate('2019-01-01', '2019-12-31').select(['Percent_Tree_Cover']).first();
+    var pred19 = predictors.addBands(mod2019);
+
+    // Predict HSI for 2019 and estimate ROC-AUC
+    function accuracy(x){
+      var Classifier = classifiers.get(x);
+      var HSM = pred19.classify(Classifier);
+      var Acc = getAcc(HSM, testingdata2019);
+      return getAUCPR(Acc);
+    }
+
+    var AUCPRs = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(accuracy);
+    print('AUC of the precision-recall:', AUCPRs);
+    print('Mean AUC of the precision-recall', AUCPRs.reduce(ee.Reducer.mean()));
+
+    // Function to extract other metrics
+    function getMetrics(x){
+      var Classifier = classifiers.get(x);
+      var HSM = pred19.classify(Classifier);
+      var Acc = getAcc(HSM, testingdata2019);
+      return Acc.sort({property:'SUMSS',ascending:false}).first();
+    }
+
+    // Extract threshold values
+    var Metrics = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(getMetrics);
+    print('Sensitivity:', ee.FeatureCollection(Metrics).aggregate_array("TPR"));
+    print('Specificity:', ee.FeatureCollection(Metrics).aggregate_array("TNR"));
+
+<figure>
+<img src="./Figures/Fig13.png"
+alt="Figure 13. 2019 presence data used for model validation." />
+<figcaption aria-hidden="true">Figure 13. 2019 presence data used for
+model validation.</figcaption>
+</figure>
+
+------------------------------------------------------------------------
+
+The individual model accuracy is:
+
+<table>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Random Forest AUC-PR</th>
+<th>Sensitivity</th>
+<th>Specificity</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Run 1</td>
+<td>0.89</td>
+<td>0.81</td>
+<td>0.85</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Run 2</td>
+<td>0.82</td>
+<td>0.83</td>
+<td>0.76</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Run 3</td>
+<td>0.78</td>
+<td>0.77</td>
+<td>0.84</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Run 4</td>
+<td>0.83</td>
+<td>0.74</td>
+<td>0.91</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Run 5</td>
+<td>0.72</td>
+<td>0.75</td>
+<td>0.85</td>
+<td></td>
+</tr>
+<tr class="even">
+<td><strong>Mean</strong></td>
+<td><strong>0.81</strong></td>
+<td><strong>0.78</strong></td>
+<td><strong>0.84</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### Model predictions
+
+After validating our models, we can predict suitable habitat across all
+years to reflect changes over time in the Terra MODIS VCF image
+composite. We need to define a function that adds the Terra MODIS VCF of
+each year to the mean annual temperature, annual precipitation and
+elevations variables and predicts the habitat suitability for each
+single model. We then obtain the median habitat suitability per pixel as
+the final prediction.
+
+    ///////////////////////////
+    // Section 8 - Predictions
+    ///////////////////////////
+
+    var PTC = ee.ImageCollection("MODIS/006/MOD44B").select(['Percent_Tree_Cover']);
+    var HSI = PTC.map(function(img){
+      var predimg = predictors.addBands(img); 
+      return ee.ImageCollection.fromImages(ee.List.sequence(0,ee.Number(numiter).subtract(1),1)
+      .map(function prediction(x){
+            var Classifier = classifiers.get(x);
+            return predimg.classify(Classifier)}))
+      .mean().copyProperties(img, ['system:time_start']);
+      });
+
+    //print(HSI);
+
+We can plot some outputs. We need to convert the resulting image
+collection into a list to display each year. Here we display years 2000
+and 2019.
+
+    // Define visualization parameters.
+    var visParams = {
+      min: 0,
+      max: 0.9,
+      palette: ["#440154FF","#482677FF","#404788FF","#33638DFF","#287D8EFF",
+      "#1F968BFF","#29AF7FFF","#55C667FF","#95D840FF","#DCE319FF"],
+    };
+
+    var HSIlist = HSI.toList(20);
+
+    // Add final habitat suitability layer to the map. Use the function get to select specific years. 0 is the first element in the list.
+    Map.addLayer(ee.Image(HSIlist.get(0)), visParams, 'Habitat Suitability - 2000');
+    Map.addLayer(ee.Image(HSIlist.get(19)), visParams, 'Habitat Suitability - 2019');
+
+    // Create legend for habitat suitability map.
+    var legend = ui.Panel({style: {position: 'bottom-left', padding: '8px 15px'}});
+
+    legend.add(ui.Label({
+      value: "Habitat suitability",
+      style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 4px 0', padding: '0px'}
+    }));
+
+    var colors = ["#DCE319FF","#287D8EFF","#440154FF"];
+    var names = ['High', 'Medium','Low'];
+    var entry;
+    for (var x = 0; x<3; x++){
+      entry = [
+        ui.Label({style:{color:colors[x],margin: '0 0 4px 0'}, value:'██'}),
+        ui.Label({value: names[x],style: {margin: '0 0 4px 4px'}})
+      ];
+      legend.add(ui.Panel(entry, ui.Panel.Layout.Flow('horizontal')));
+    }
+
+<figure>
+<img src="./Figures/Fig14.png"
+alt="Figure 14. Predicted Cebus capucinus habitat suitability for 2000." />
+<figcaption aria-hidden="true">Figure 14. Predicted <em>Cebus
+capucinus</em> habitat suitability for 2000.</figcaption>
+</figure>
+
+<figure>
+<img src="./Figures/Fig15.png"
+alt="Figure 15. Predicted Cebus capucinus habitat suitability for 2019." />
+<figcaption aria-hidden="true">Figure 15. Predicted <em>Cebus
+capucinus</em> habitat suitability for 2019.</figcaption>
+</figure>
+
+## Habitat suitability change assessment
+
+To assess habitat suitability change across time, we fit a pixel-based
+linear regression. We applied the `formaTrend()` function to the image
+collection containing habitat suitability predictions for each year of
+our 20-year study. This function fits a pixel-based linear regression to
+identify areas where habitat suitability increased or decreased across
+the 20-year period. The output is an image with four bands, two of which
+are of particular interest, 1) the slope of the linear regression and 2)
+a t-test statistic on the significance of the slope. Finally, we create
+an output map showing the slope of the linear regression at each pixel
+while using the t-test statistic to mask out any pixels with
+non-significant trends. Positive values indicate areas that increased in
+habitat suitability over time and negative values indicate areas that
+decreased in habitat suitability.
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Section 9 - Fit linear regression to 20 years of HSI values at each pixel
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Use the formaTrend function to fit a linear regression to the habitat suitability collection.
+    var TempTrend = HSI.formaTrend();
+    //print(TempTrend);
+
+    // Display pixels with significant trends at an alpha = 0.05.
+    // To mask out pixels with non-significant trends, we need to find those pixels with 
+    // a two tailed t-test statistic larger or lower than the threshold value for the specific degrees of freedom.
+    // In our case we have 20 years, so 19 degrees of freedom, at an alpha of 0.05.  This gives us critical values for the t-test statistic of 2.093 and -2.093
+
+    var negative = TempTrend.select('long-tstat').lt(-2.093);
+    var possitive = TempTrend.select('long-tstat').gt(2.093);
+    var sign = negative.add(possitive);
+
+    Map.addLayer(TempTrend.select('long-trend').updateMask(sign), {
+      min: -0.02,
+      max: 0.02,
+      palette: ['ff0000','e96666','d6aeae','f1f1f1','c8ccff','6e8dff','000dad']
+    }, 'HSI long-trend');
+
+    // Add regression slope legend to the map
+    legend.add(ui.Label({
+      value: "Regression slope",
+      style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 4px 0', padding: '0px'}
+    }));
+
+    var colors = ['ff0000','f1f1f1','000dad'];
+    var names = ['-0.02', '0','0.02'];
+    var entry;
+    for (var x = 0; x<3; x++){
+      entry = [
+        ui.Label({style:{color:colors[x],margin: '0 0 4px 0'}, value:'██'}),
+        ui.Label({value: names[x],style: {margin: '0 0 4px 4px'}})
+      ];
+      legend.add(ui.Panel(entry, ui.Panel.Layout.Flow('horizontal')));
+    }
+
+    Map.add(legend);
+
+<figure>
+<img src="./Figures/Fig16.png"
+alt="Figure 16. Regression slope values show areas with positive (blue) to negative (red) trends in habitat suitability change between 2000 and 2019 for Cebus capucinus. Only pixels with significant trends are shown." />
+<figcaption aria-hidden="true">Figure 16. Regression slope values show
+areas with positive (blue) to negative (red) trends in habitat
+suitability change between 2000 and 2019 for Cebus capucinus. Only
+pixels with significant trends are shown.</figcaption>
+</figure>
+
+It is also possible to create a gif animation showing the change of
+habitat suitability across years.
+
+    // Create RGB visualization images for use as animation frames.
+    var rgbVis = HSM.map(function(img) {
+      var scale = 250;
+      return img.visualize(visParams);
+    });
+
+    // Define GIF visualization parameters.
+    var gifParams = {
+      'region': geometry2,
+      'dimensions': 500,
+      'crs': 'EPSG:3857',
+      'framesPerSecond': 2
+    };
+
+    //Print the GIF URL to the console.
+    print(rgbVis.getVideoThumbURL(gifParams));
+
+<figure>
+<img src="./Figures/Fig17.gif"
+alt="Figure 17. Cebus capucinus habitat suitability change across years." />
+<figcaption aria-hidden="true">Figure 17. <em>Cebus capucinus</em>
+habitat suitability change across years.</figcaption>
+</figure>
+
+As before, we can export results to Google Drive.
+
+    //////////////////////////////////////////////////////
+    // Section 10 - Export final map
+    //////////////////////////////////////////////////////
+
+    // Export final model to drive
+    Export.image.toDrive({
+       image: TempTrend, //Image to export
+       description: 'Cebuscapucinus', //File name
+       scale: GrainSize, // Spatial resolution
+       maxPixels: 1e10,
+       region: AOI //Area of interest
+     });
+
+## Case Study 3: Modelling species distribution at high spatial resolution using unclassified satellite images as predictor variables
+
+In this third case study, we demonstrate the implementation of the SDM
+workflow to predict habitat suitability based on presence records and
+unclassified satellite data. The code workflow is very similar to case
+study 1, and differs primarily in the predictor variables used and the
+fact that this analysis has to be run on batch mode to avoid memory
+limits. Therefore, all results have to be exported to Google Drive. Note
+that it is possible to run a couple of iterations to quickly visualize
+results on the interactive map before exporting the model with a larger
+number of iterations.
+
+### Loading data and defining grid size and extent
+
+For this example, we obtained the eBird observation dataset for
+*Hylocichla mustelina* from GBIF (GBIF.org (12 November 2021);
+<https://doi.org/10.15468/dl.hpjfup>) for the month of June (middle of
+breeding season when observation of migrants is more unlikely) for the
+years 2018, 2019 and 2020. The dataset was first ingested into GEE as an
+asset.
+
+In the first section we load the data and set the spatial resolution of
+the analysis to 90 m.
+
+We define the extent of the analysis to be the eastern continental USA
+(4,606,284 km2), limiting the extent to the westernmost observation in
+the dataset (longitude: -103 degrees). To do this we used the Large
+Scale International Boundary (LSIB) dataset and filtered out the USA
+boundary. We used the `intersection()` function to limit the geometry to
+the -103 degrees of longitude.
+
+We rarified the original 99,939 observations to keep one per pixel,
+resulting in 34,880 observations for modelling.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 1 - Load species data, AOI, and remove duplicates
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Load presence data
+    var DataRaw = ee.FeatureCollection('users/ramirocrego84/WoodThrush');
+    //print('Original data size:', DataRaw.size());
+
+    //Define the AOI
+    var USA = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq('country_co','US'));
+    var AOI = USA.filter(ee.Filter.eq('country_na','United States')).limit(2).union();
+    var AOI = ee.Feature(AOI.first()).geometry();
+    var AOI = AOI.intersection(ee.Geometry.Polygon(
+            [[[-103, 49],
+              [-103, 23],
+              [-64, 23],
+              [-64, 49]]]),1000)
+              
+    //var Area = AOI.area()
+    //var AreaSqKm = ee.Number(Area).divide(1e6).round() //This calculates the area of the AOI in km2
+    //print(AreaSqKm)
+
+    // Define spatial resolution to work with (m)
+    var GrainSize = 90;
+
+    function RemoveDuplicates(data){
+      var randomraster = ee.Image.random().reproject('EPSG:4326', null, GrainSize);
+      var randpointvals = randomraster.sampleRegions({collection:ee.FeatureCollection(data), scale: 10, geometries: true});
+      return randpointvals.distinct('random');
+    }
+
+    DataRaw = DataRaw.filter(ee.Filter.bounds(AOI));
+    var Data = RemoveDuplicates(DataRaw)
+    print('Final data size:', Data.size());
+
+    // Add border of study area to the map
+    var outline = ee.Image().byte().paint({
+      featureCollection: AOI, color: 1, width: 3});
+    Map.addLayer(outline, {palette: 'FF0000'}, "Study Area");
+
+    // Center map to the center of the screen
+    Map.centerObject(AOI,3); //Number indicates the zoom level
+
+    // Visualize presence points on the map
+    Map.addLayer(Data, {color:'red'}, 'Presence', 0);
+
+### Predictor variables
+
+In the next step we prepare the predictor variables for analysis.
+
+We modeled *Hylocichla mustelina* habitat suitability using
+atmospherically corrected Landsat 8 surface reflectance (SR) collection
+2, Advanced Land Observing Satellite (ALOS) Phased Arrayed L-band
+Synthetic Aperture Radar (SAR) HH and HV polarization datasets, and
+temperature products as predictor variables.
+
+We first loaded and filtered the Landsat 8 SR product to keep only
+images between the months of April and August and for 2018, 2019, and
+2020. We included those months to obtain a cloud-free mosaic for the
+entire study area.
+
+For each image, we masked bad quality pixels with clouds, cloud shadows
+and saturated pixels and rescaled pixel values with the appropriate
+scaling factors using a predefined `maskL8sr()` mask function available
+in GEE.
+
+We selected the blue, red, green, near-infrared and shortwave infrared 1
+bands for analysis (30 m spatial resolution).
+
+For each image we also calculated NDVI using the
+`normalizedDifference()` function available in GEE.
+
+We finally created a mosaic of the entire study area by calculating the
+median value from the time series for each pixel across all Landsat
+image bands.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 2 - Selecting Predictor Variables
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Load and process landsat data
+    var l8sr = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+                    .filterBounds(AOI)
+                    //.filterMetadata('CLOUD_COVER', 'less_than', 100)
+                    .filterDate('2018-01-01', '2020-12-31')
+                    .filter(ee.Filter.calendarRange({start:5, end:8, field:'month'}));
+                    
+
+    // Function to mask clouds
+    function maskL8sr(image) {
+      // Bit 0 - Fill
+      // Bit 1 - Dilated Cloud
+      // Bit 2 - Cirrus
+      // Bit 3 - Cloud
+      // Bit 4 - Cloud Shadow
+      var qaMask = image.select('QA_PIXEL').bitwiseAnd(parseInt('11111', 2)).eq(0);
+      var saturationMask = image.select('QA_RADSAT').eq(0);
+
+      // Apply the scaling factors to the appropriate bands.
+      var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
+      var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0);
+
+      // Replace the original bands with the scaled ones and apply the masks.
+      return image.addBands(opticalBands, null, true)
+          .addBands(thermalBands, null, true)
+          .updateMask(qaMask)
+          .updateMask(saturationMask);
+    }
 
     // Function to rename Landsat 8 bands for cross-Landsat compatibility & rescale
     var renameBandsL8 = function(image) {
@@ -993,384 +2075,949 @@ satellites (Landsat 4 and Landsat 8 for instance.).
         return imgNewBands.copyProperties(image,['system:time_start']);
     };
 
-Finally, we will create a function to compute NDVI. This one should be
-more familiar. Note that we want to add the new NDVI band to the rest of
-the bands in each image, thus, we add `add.Bands(ndvi)` to the return of
-the function.
-
     // Function to compute NDVI
     var addNDVI = function(image) {
         var ndvi = image.normalizedDifference(['nir', 'red']).rename('ndvi');
         return image.addBands(ndvi);
     };
 
-Now that we have all the functions defined, we can load the Landsat 8
-Surface Reflectance collection.
+    // Apply functions
+    var l8sr8nocld = l8sr.map(maskL8sr)
+                          .map(renameBandsL8)
+                          .map(addNDVI);
 
-We will apply a couple of filters. First `filterBounds()` to keep images
-that intersect the study area. We will also retain images that have less
-than 20% of cloud coverage. Finally, we will work with images from 2019
-to create a year composite.
+    // Create a median composite image (takes the median value from each band across all available images)
+    var l8srcompmedian = l8sr8nocld.median();
 
-    // Load Landsat surface reflectance images from 2016-2018
-    var l8sr = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-                    .filterBounds(StudyArea)
-                    .filterMetadata('CLOUD_COVER', 'less_than', 20)
-                    .filterDate('2019-01-01', '2019-12-31');
-    print(l8sr);
+We also used the 2018, 2019, and 2020 global mosaics of Advanced Land
+Observing Satellite (ALOS) Phased Arrayed L-band Synthetic Aperture
+Radar (SAR) HH and HV polarization datasets (25 m spatial resolution).
+For each pixel of the two bands, we also obtained the median value among
+the three years.
 
-If you print the image collection to the console, you will see that you
-have retained 15 images:
+    // Load Radar Data
+    var radar = ee.ImageCollection('JAXA/ALOS/PALSAR/YEARLY/SAR')
+                      .filterDate('2018-01-01', '2020-12-31');
+                    
+    var radar = radar.select(['HH','HV']).median();
+
+Finally, to account for the variation in temperature across the breeding
+range we included the mean temperature for the month of June (1 km
+spatial resolution).
+
+    // Load WorldClim BIO Variables (a multiband image) from the data catalog
+    var juneTemp = ee.ImageCollection('WORLDCLIM/V1/MONTHLY').filter(ee.Filter.eq('month',6)).first().select('tavg');
+
+We then combined all predictor variables into one multiband image.
+
+    // Combine bands into a single multi-band image
+    var predictors = l8srcompmedian.addBands(radar).addBands(juneTemp);
+
+Finally, we masked out all pixels containing permanent water using the
+global water surface product.
+
+    // Mask water pixels from the predictor variable image collection
+    var watermask = ee.Image("JRC/GSW1_3/GlobalSurfaceWater").select('max_extent').eq(0);
+    var predictors = predictors.updateMask(watermask).clip(AOI);
+
+You need to display the resulting images to make sure you have a
+complete mosaic for the study area with minimal gaps due to clouds or
+bad quality pixels. In our case study, we had to modify the filter
+parameters until the complete Lansdat mosaic was obtained without
+missing data.
+
+    // Get band names
+    var bands = predictors.bandNames();
+
+    // Display layers on the map
+    Map.addLayer(predictors, {bands:['ndvi'], min: 0, max: 1,  palette: ['white','yellow','green']}, 'NDVI', 0);
+    Map.addLayer(predictors, {bands: ['red', 'green', 'blue'], gamma: 1, min: 0, max: 0.2, opacity: 1}, 'L8 SR True color',0);
+    Map.addLayer(predictors, {bands:['tavg'], min: 0, max: 300,  palette: ['blue', 'purple', 'cyan', 'green', 'yellow', 'red']}, 'Mean T June', 0);
+
+### Defining spatial blocks for model fitting and cross validation
+
+For this analysis, we implemented a two-step environmental profiling
+technique to generate pseudo-absences. We performed a k-means clustering
+based on Euclidean distance for a subset of 1,000 randomly selected
+occurrences to restrict the area for the creation of pseudo-absences to
+pixels more dissimilar to the environmental profile of the occurrence
+data.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 3 - Defining spatial blocks for model fitting and cross validation
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
+    // This will prevent having presence and pseudo-absences in the same pixel. 
+    var mask = Data
+      .reduceToImage({
+        properties: ['random'],
+        reducer: ee.Reducer.first()
+    }).reproject('EPSG:4326', null, ee.Number(GrainSize)).mask().neq(1).selfMask();
+
+    // Extract local covariate values from multiband predictor image at presence points
+    var PixelVals = predictors.sampleRegions({collection: Data.randomColumn({seed:5}).sort('random').limit(1000), properties: [], scale: 30, tileScale: 8});
+    // Instantiate the clusterer and train it.
+    var clusterer = ee.Clusterer.wekaKMeans({nClusters:2, distanceFunction:"Euclidean", fast: true}).train(PixelVals);
+    // Cluster the input using the trained clusterer.
+    var ClResult = predictors.cluster(clusterer);
+
+    // Retain cluster class mode dissimilar to occurrence data
+    var ClMask = ClResult.select(['cluster']).eq(1);
+              
+    var AreaForPA =  mask.updateMask(ClMask);
+
+    Map.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
+
+We implemented a repeated (5-times) spatial block cross validation
+technique, randomly partitioning 200 x 200 km spatial blocks for model
+training (70%) and validation (30%) while randomly generating
+pseudo-absences at each iteration.
+
+    // Define a function to create a grid over AOI
+    function makeGrid(Geometry, scale) {
+      // pixelLonLat returns an image with each pixel labeled with longitude and
+      // latitude values.
+      var lonLat = ee.Image.pixelLonLat();
+      // Select the longitude and latitude bands, multiply by a large number then
+      // truncate them to integers.
+      var lonGrid = lonLat
+        .select('longitude')
+        .multiply(100000)
+        .toInt();
+      var latGrid = lonLat
+        .select('latitude')
+        .multiply(100000)
+        .toInt();
+      return lonGrid
+        .multiply(latGrid)
+        .reduceToVectors({
+          geometry: Geometry,
+          scale: scale,
+          geometryType: 'polygon',
+        });
+    }
+    // Create grid and remove cells outside AOI
+    var Scale = 200000; // Set range in m to create spatial blocks
+    var Grid = makeGrid(AOI, Scale);
+    Map.addLayer(Grid, {},'Grid for spatail block cross validation', 0);
+
+### Fitting SDM models
+
+For the analysis, we generated an equal number of pseudo-absences as
+occurrence data for each of the 5 datasets. To ensure an equal number of
+pseudo-absences, we first generated an arbitrarily large sample of 50000
+random points to allow for pixels to be discarded that fell outside land
+area (withing the ocean or lakes) within the spatial blocks selected for
+model training. After dropping these masked pixels, we then limited the
+number of pseudo-absence points to match the number of presence points
+for a given dataset. We then fit a random forest model (500 trees) to
+each individual training dataset and then averaged model outputs to
+calculate the mean habitat suitability of the five iterations.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 4 - Fitting SDM models
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Define SDM function
+    // Activate the desired classifier, random forest or gradient boosting. 
+    // Note that other algorithms are available in GEE. See ee.Classifiers on the documentation for more information.
+
+    function SDM(x) {
+        var Seed = ee.Number(x);
+        // Randomly split blocks for training and validation
+        var GRID = ee.FeatureCollection(Grid).randomColumn({seed:Seed}).sort('random');
+        var TrainingGrid = GRID.filter(ee.Filter.lt('random', split));  // Filter points with 'random' property < split percentage
+        var TestingGrid = GRID.filter(ee.Filter.gte('random', split));  // Filter points with 'random' property >= split percentage
+
+        // Presence
+        var PresencePoints = ee.FeatureCollection(Data);
+        PresencePoints = PresencePoints.map(function(feature){return feature.set('PresAbs', 1)});
+        var TrPresencePoints = PresencePoints.filter(ee.Filter.bounds(TrainingGrid));  // Filter points with 'random' property < split percentage
+        var TePresencePoints = PresencePoints.filter(ee.Filter.bounds(TestingGrid));  // Filter points with 'random' property >= split percentage
+
+        // Pseudo-absences
+        var TrPseudoAbsPoints = AreaForPA.sample({region: TrainingGrid, scale: GrainSize, numPixels: 50000, seed:Seed, geometries: true, tileScale: 16}); // We add extra points to account for those points that land in masked areas of the raster and are discarded. This ensures a balanced presence/pseudo-absence data set
+        TrPseudoAbsPoints = TrPseudoAbsPoints.randomColumn().sort('random').limit(ee.Number(TrPresencePoints.size())); //Randomly retain the same number of pseudo-absences as presence data 
+        TrPseudoAbsPoints = TrPseudoAbsPoints.map(function(feature){
+            return feature.set('PresAbs', 0);
+            });
+     
+        var TePseudoAbsPoints = AreaForPA.sample({region: TestingGrid, scale: GrainSize, numPixels: TePresencePoints.size(), seed:Seed, geometries: true, tileScale: 16}); // We add extra points to account for those points that land in masked areas of the raster and are discarded. This ensures a balanced presence/pseudo-absence data set
+        TePseudoAbsPoints = TePseudoAbsPoints.randomColumn().sort('random').limit(ee.Number(TePresencePoints.size())); //Randomly retain the same number of pseudo-absences as presence data 
+        TePseudoAbsPoints = TePseudoAbsPoints.map(function(feature){
+            return feature.set('PresAbs', 0);
+            });
+
+        // Merge points
+        var trainingPartition = TrPresencePoints.merge(TrPseudoAbsPoints);
+        var testingPartition = TePresencePoints.merge(TePseudoAbsPoints);
+
+        // Extract local covariate values from multiband predictor image at training points
+        var trainPixelVals = predictors.sampleRegions({collection: trainingPartition, properties: ['PresAbs'], scale: GrainSize, tileScale: 16, geometries: false});
+
+        // Classify using random forest
+        var Classifier = ee.Classifier.smileRandomForest({
+           numberOfTrees: 500, //The number of decision trees to create.
+           variablesPerSplit: null, //The number of variables per split. If unspecified, uses the square root of the number of variables.
+           minLeafPopulation: 10,//Only create nodes whose training set contains at least this many points. Integer, default: 1
+           bagFraction: 0.5,//The fraction of input to bag per tree. Default: 0.5.
+           maxNodes: null,//The maximum number of leaf nodes in each tree. If unspecified, defaults to no limit.
+           seed: Seed//The randomization seed.
+          });
+      
+        // Presence probability 
+        var ClassifierPr = Classifier.setOutputMode('PROBABILITY').train(trainPixelVals, 'PresAbs', bands); 
+        var ClassifiedImgPr = predictors.select(bands).classify(ClassifierPr);
+
+        // Binary presence/absence map
+        //var ClassifierBin = Classifier.setOutputMode('CLASSIFICATION').train(trainPixelVals, 'PresAbs', bands); 
+        //var ClassifiedImgBin = predictors.select(bands).classify(ClassifierBin);
+       
+        return ee.List([ClassifiedImgPr, testingPartition]);
+    }
+
+
+    // Define partition for training and testing data
+    var split = 0.70;  // The proportion of the blocks used to select training data
+
+    // Define number of repetitions
+    var numiter = 5;
+
+    // Fit SDM 
+    var results = ee.List([55,7,25,65,23]).map(SDM);
+
+    // Extract results from list
+    var results = results.flatten();
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 5 - Extracting and displaying model prediction results
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Habitat suitability
+
+    // Extract all model predictions
+    var images = ee.List.sequence(0,ee.Number(numiter).multiply(2).subtract(1),2).map(function(x){
+      return results.get(x)});
+
+    // Calculate mean of all individual model runs
+    var ModelAverage = ee.ImageCollection.fromImages(images).mean();
+
+### Accuracy assessment
+
+We assessed model accuracy by calculating the AUC-PR, sensitivity, and
+specificity on the validation dataset for each model iteration. To
+obtain a binary potential distribution map, we used the mean threshold
+that maximized the sum of sensitivity and specificity of each of the
+individual model predictions.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 6 - Accuracy assessment
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Extract testing/validation datasets
+    var TestingDatasets = ee.List.sequence(1,ee.Number(numiter).multiply(2).subtract(1),2).map(function(x){
+                          return results.get(x)});
+
+    // Double check that you have a satisfactory number of points for model validation
+    // print('Number of presence and pseudo-absence points for model validation', ee.List.sequence(0,ee.Number(numiter).subtract(1),1)
+    // .map(function(x){
+    //   return ee.List([ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',1)).size(),
+    //         ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',0)).size()]);
+    // })
+    // );
+
+    // Define functions to estimate sensitivity, specificity and precision.
+    function getAcc(img,TP){
+      var Pr_Prob_Vals = img.sampleRegions({collection: TP, properties: ['PresAbs'], scale: GrainSize, tileScale: 16});
+      var seq = ee.List.sequence({start: 0, end: 1, count: 25});
+      return ee.FeatureCollection(seq.map(function(cutoff) {
+      var Pres = Pr_Prob_Vals.filterMetadata('PresAbs','equals',1);
+      // true-positive and true-positive rate, sensitivity  
+      var TP =  ee.Number(Pres.filterMetadata('classification','greater_than',cutoff).size());
+      var TPR = TP.divide(Pres.size());
+      var Abs = Pr_Prob_Vals.filterMetadata('PresAbs','equals',0);
+      // false-negative
+      var FN = ee.Number(Pres.filterMetadata('classification','less_than',cutoff).size());
+      // true-negative and true-negative rate, specificity  
+      var TN = ee.Number(Abs.filterMetadata('classification','less_than',cutoff).size());
+      var TNR = TN.divide(Abs.size());
+      // false-positive and false-positive rate
+      var FP = ee.Number(Abs.filterMetadata('classification','greater_than',cutoff).size());
+      var FPR = FP.divide(Abs.size());
+      // precision
+      var Precision = TP.divide(TP.add(FP));
+      // sum of sensitivity and specificity
+      var SUMSS = TPR.add(TNR);
+      return ee.Feature(null,{cutoff: cutoff, TP:TP, TN:TN, FP:FP, FN:FN, TPR:TPR, TNR:TNR, FPR:FPR, Precision:Precision, SUMSS:SUMSS});
+      }));
+    }
+
+
+    // Calculate AUC of Precision Recall Curve
+
+    function getAUCPR(roc){
+      var X = ee.Array(roc.aggregate_array('TPR'));
+      var Y = ee.Array(roc.aggregate_array('Precision')); 
+      var X1 = X.slice(0,1).subtract(X.slice(0,0,-1));
+      var Y1 = Y.slice(0,1).add(Y.slice(0,0,-1));
+      return X1.multiply(Y1).multiply(0.5).reduce('sum',[0]).abs().toList().get(0);
+    }
+
+    function AUCPRaccuracy(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return getAUCPR(Acc);
+    }
+
+    var AUCPRs = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(AUCPRaccuracy);
+
+    // Function to extract other metrics
+    function getMetrics(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return Acc.sort({property:'SUMSS',ascending:false}).first();
+    }
+
+    // Extract sensitivity, specificity and mean threshold values
+    var Metrics = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(getMetrics);
+
+### Exporting model outputs
+
+We ran the model in batch mode, exporting the results to Google Drive.
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 7 - Export outputs
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Export final outputs to Google Drive
+
+    Export.image.toDrive({
+      image: ModelAverage, //Object to export
+      description: 'HSI', //Name of the file
+      scale: GrainSize, //Spatial resolution of the exported raster
+      maxPixels: 1e10,
+      region: AOI //Area of interest
+    });
+
+    Export.table.toDrive({
+      collection: ee.FeatureCollection(AUCPRs
+                            .map(function(element){
+                            return ee.Feature(null,{AUCPR:element})})),
+      description: 'AUCPR',
+      fileFormat: 'CSV',
+    });
+
+    Export.table.toDrive({
+      collection: ee.FeatureCollection(Metrics),
+      description: 'Metrics',
+      fileFormat: 'CSV',
+    });
+
+Because exporting results for this analysis takes a long time, instead
+of directly exporting the binary presence-absence map, we manually
+calculated the average threshold from the exported accuracy metrics and
+set the threshold on the visualization parameters in QGIS.
+
+This is the resulting figure we produced for the publication.
 
 <center>
 
 <figure>
-<img src="FigCh3/Figure2.png" style="width:90.0%"
-alt="Figure 2. Landsat 8 Surface Reflectance filtered images." />
-<figcaption aria-hidden="true">Figure 2. Landsat 8 Surface Reflectance
-filtered images.</figcaption>
+<img src="Figures/Fig18.jpg" style="width:90.0%"
+alt="Figure 18. Habitat suitability prediction for Hylocichla mustelina across the eastern continental USA (4,606,284 km2) at 90 m spatial resolution. This analysis used a combination of Landsat 8 surface reflectance collection 2 and Advanced Land Observing Satellite (ALOS) Phased Arrayed L-band Synthetic Aperture Radar (SAR) mosaics and averaged temperature datasets. The zoom-in boxes show details of habitat suitability predictions at 90 m spatial resolution. Red dots represent 2,000 presence locations of Hylocichla mustelina, randomly selected from the 34,880 observations used for modelling. The potential distribution is also shown in the bottom left corner of the figure." />
+<figcaption aria-hidden="true">Figure 18. Habitat suitability prediction for <em>Hylocichla mustelina<em> across the eastern continental USA (4,606,284 km2) at 90 m spatial resolution. This analysis used a combination of Landsat 8 surface reflectance collection 2 and Advanced Land Observing Satellite (ALOS) Phased Arrayed L-band Synthetic Aperture Radar (SAR) mosaics and averaged temperature datasets. The zoom-in boxes show details of habitat suitability predictions at 90 m spatial resolution. Red dots represent 2,000 presence locations of <em>Hylocichla mustelina<em>, randomly selected from the 34,880 observations used for modelling. The potential distribution is also shown in the bottom left corner of the figure.</figcaption>
 </figure>
 
 </center>
 
-We now can apply the functions to mask cloud pixels, rename bands and
-add NDVI by using the function `map()`.
 
-Finally, we will create a median composite by calculating the `median()`
-value for each pixel in each band across all available images and
-`clip()` the final image to the study area.
+## Code to model presence-absence data
 
-    // Apply functions
-    var l8sr8nocld = l8sr.map(lasrcMask)
-                          .map(renameBandsL8)
-                          .map(addNDVI);
-                        
-      
-    // Create a median composite image (takes the median value from each band across all available images)
-    var l8srcomp = l8sr8nocld.median().clip(StudyArea);
+Using presence and absence data is always recommended for SDM analysis.
 
-You can now display some band combinations into the map. We will use the
-final composite together with the high resolution image provided by
-Google to create training data.
+Here we present code that will allow you to fit an SDM using presence
+and absence data. Because there is no need to create pseudo-absences,
+the code has some modifications from the previous examples. However, the
+work flow is very similar.
 
-    // Display image
-    Map.addLayer(l8srcomp, {bands: ['red', 'green', 'blue'], gamma: 1, max: 14139, min: 8505, opacity: 1}, 'L8 SR True color');
-    Map.addLayer(l8srcomp, {bands: ['nir', 'red', 'green'], gamma: 1, max: 18376, min: 9196, opacity: 1}, 'L8 SR False color');
-    Map.addLayer(l8srcomp, {bands: ['ndvi'], palette: ['white','green'], max: 1, min: 0, opacity: 1}, 'NDVI');
+It is important that the data set that is uploaded into GEE as an asset
+contains a field with 1 indicating presence and 0 indicating absence for
+each location.
 
-### Idenifying land cover classes
+    // Presence absence model
 
-The next step in the supervised classification process is to define the
-classes that you will work with. This is an important step. Complete….
+    ///////////////////////////////
+    // Section 1 - Species data
+    ///////////////////////////////
 
-For this example, we will work with four classes: 1. Forest 2. Water 3.
-Sand 4. Agriculture
+    // Load presence absence data
+    //var Data = ee.FeatureCollection('users/yourdata');
+    var Data = table
+    print('Data size:', Data.size());
 
-We need to train a model to identify these four land cover classes
-across the image composite. Thus, we need to indicate to the algorithm
-where those areas are. For this, we will use the drawing tools to draw
-polygons on top of the Landsat image composite where the land cover is
-distinctive. You can use the high-resolution image provided by Google to
-help you find clear areas. If your polygons are not well defined, then
-the algorithm will confuse classes.
+    // Define spatial resolution to work with (m)
+    var GrainSize = 1000;
 
-> Note that some areas are highly dynamic, such as the sand banks along
-> the river. Make sure your polygons match the Landsat image, as this is
-> the image you are using to train the algorithm.
 
-You need to create a new geometry for each class. Then you can draw as
-many polygons as you want for each class. Start with at least 10
-polygons for each class. Try to account for all possible spectral
-variation across the class.
+    // Add two maps to the screen.
+    var left = ui.Map();
+    var right = ui.Map();
+    ui.root.clear();
+    ui.root.add(left);
+    ui.root.add(right);
 
-Choose a proper color to represent each class.
+    // Link maps, so when you drag one map, the other will be moved in sync.
+    ui.Map.Linker([left, right], 'change-bounds');
 
-Here is a demonstration on how to crate and name the different
-geometries for the four classes.
+    // Add presence points to the map
+    // Visualize presence points on the map
+    //right.addLayer(Data, {color:'red'}, 'Data', 1);
+    //left.addLayer(Data, {color:'red'}, 'Data', 1);
 
-<center>
+    ////////////////////////////////////////
+    // Section 2 - Define Area of Interest
+    ////////////////////////////////////////
 
-<img src="FigCh3/TrainingData.gif" style="width:90.0%" />
+    // Define the AOI
+    var AOI = Data.geometry().bounds().buffer(10000);
 
-</center>
+    // Add border of study area to the map
+    var outline = ee.Image().byte().paint({
+      featureCollection: AOI, color: 1, width: 3});
+    right.addLayer(outline, {palette: 'FF0000'}, "Study Area");
+    left.addLayer(outline, {palette: 'FF0000'}, "Study Area");
 
-Use the hand tool to select and edit any polygons or delete them.
+    // Center map to the area of interest
+    right.centerObject(AOI, 9); //Number indicates the zoom level
+    left.centerObject(AOI, 9); //Number indicates the zoom level
 
-### Creating training and validation data sets
 
-The next step is to create random points in each polygon to extract the
-spectral information on those pixels. This is going to be the data set
-to train and validate your classification model.
+    //////////////////////////////////////////////
+    // Section 3 - Selecting Predictor Variables
+    //////////////////////////////////////////////
 
-The first step is to combine all geometries using the `merge()` funtion.
+    // Here as an example we are using elevation data.
+    // Load elevation data from the data catalog and calculate slope, aspect, and a simple hillshade from the terrain Digital Elevation Model.
+    var Terrain = ee.Algorithms.Terrain(ee.Image("USGS/SRTMGL1_003"));
+    var Terrain = Terrain.select(['elevation','slope','aspect']); // Select elevation, slope and aspect
 
-    // Merge training polygons for land cover map
-    var LandCovers = [Forest,Agriculture,Sand,Water];
+    // Load NDVI 250 m collection and estimate median value per pixel
+    var MODIS = ee.ImageCollection("MODIS/006/MOD13Q1");
+    var MedianNDVI = MODIS.filterDate('2003-01-01', '2020-12-31').select(['NDVI']).median();
 
-The next steps are going to be more challenging. Take your time to
-understand every step in the code.
+    // Combine bands into a single image
+    var predictors = Terrain.addBands(MedianNDVI).clip(AOI);
 
-Now that we have all geometries combined, we need to convert them into a
-feature and add a numeric class property. Instead of doing this one by
-one, we can create a loop.
+    // Mask ocean from predictor variables
+    var watermask =  Terrain.select('elevation').gt(0); //Create a water mask
+    var predictors = predictors.updateMask(watermask).clip(AOI);
 
-In a loop we start with the command `for()`. The `for()` takes 3
-arguments. The first one is the variable to loop over and the value at
-which to start (We call this variable i and start at 0). The second
-argument is where to end the loop. Here instead of hard coding 3
-(Remember that in java script the first element is in position 0, so the
-fourth element is in position 3), we will use the function
-`LandCovers.length` to get the number of classes and use the symbol `<`
-to get one minus the total number of classes. The advantage of using
-code is that you can later add more classes, and the loop will still
-work as it will automatically adjust for the new classes. The final
-argument increases the value each time the code in the loop is executed.
+    left.addLayer(predictors.clip(AOI), {bands:['elevation'], min: 900, max: 1700,  palette: ['000000','006600', '009900','33CC00','996600','CC9900','CC9966','FFFFFF',]}, 'Elevation (m)', 0);
+    left.addLayer(predictors.clip(AOI), {bands:['slope'], min: 0, max: 45, palette:'white,red'}, 'Slope (Degrees)', 0); 
+    left.addLayer(predictors.clip(AOI), {bands:['aspect'], min: 0, max: 350, palette:'red,blue'}, 'Aspect (Degrees)', 0); 
 
-    // Convert training data geometries to features and add numeric 'Class' property
-    for (var i = 0; i < LandCovers.length; i++){
-        LandCovers[i] = ee.Feature(LandCovers[i]).set('Class', i);
-    }
+    // Estimate correlation among predictor variables
 
-> Remember that we need to use the ee.Thing notation.
+    // Extract local covariate values from multiband predictor image at training points
+    var DataCor = predictors.sample({scale: GrainSize, numPixels: 5000, geometries: true}); //Generate 5000 random points
+    var PixelVals = predictors.sampleRegions({collection: DataCor, scale: GrainSize, tileScale: 16}); //Extract covariate values
 
-It is ideal to have ground independent data to validate your model
-predictions. However, many times it is not possible to gather such
-information. One solution is to split your data set into a percentage
-for training and the rest for validating. We will use 70% for training
-and 30% for validation.
-
-We also need to define the number of random points that we want to
-sample per class. A rule of thumb is to have for *n* bands of data, at
-least 10<sup>*n*</sup> pixels for each class. For this example we are
-going to work with 6 bands (blue, green, red, nir, swir1, ndvi) and 4
-classes.
-
-    // SAMPLE TRAINING AND VALIDATION PIXELS FROM EACH CLASS
-    var split = 0.7;   // What proportion of your data are used to train the model?
-    var N = 500;       // Define the number of pixels for each class to be randomly sampled from training polygons
-
-Now we need to create random points for each class to extract the pixel
-values and split the data set into training and validation as previously
-defined.
-
-To do this, we will have to loop over all polygons created.
-
-We first need to define two functions that we will need inside the loop.
-One function to transform each point into a feature and add a property
-class. And a second one to reassign the class after processing.
-
-    var addClass = function(poly){
-      return ee.Feature(ee.Geometry(poly)).set('Class',i);   // convert to feature and set Class
-    };
-      
-    var ptsClass = function(f) {
-      // Set class value for sampled points
-        return f.set({
-          Class: thisClass
+    // To check all pairwise correlations we need to map the reduceColumns function across all pairwise combinations of predictors
+    var CorrAll = predictors.bandNames().map(function(i){
+        var tmp1 = predictors.bandNames().map(function(j){
+          var tmp2 = PixelVals.reduceColumns({
+            reducer: ee.Reducer.spearmansCorrelation(),
+            selectors: [i, j]
+          });
+        return tmp2.get('correlation');
         });
-    };
+        return tmp1;
+      });
+    print('Variables correlation matrix',CorrAll);
 
-Now define two empty variables to store the training and validation data
-sets.
+    // Select bands for modeling
+    var bands = ['elevation','slope','aspect','NDVI'];
+    var predictors = predictors.select(bands);
 
-    // Define empty variables
-    var trainVals;
-    var testVals;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Section 4 - Defining blocks to fold randomly for cross validation
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Now is the big loop. Here is the entire code, and then we will walk
-trough line by line
+    // Define a function to create a grid over AOI
+    function makeGrid(geometry, scale) {
+      // pixelLonLat returns an image with each pixel labeled with longitude and
+      // latitude values.
+      var lonLat = ee.Image.pixelLonLat();
+      // Select the longitude and latitude bands, multiply by a large number then
+      // truncate them to integers.
+      var lonGrid = lonLat
+        .select('longitude')
+        .multiply(100000)
+        .toInt();
+      var latGrid = lonLat
+        .select('latitude')
+        .multiply(100000)
+        .toInt();
+      return lonGrid
+        .multiply(latGrid)
+        .reduceToVectors({
+          geometry: geometry.buffer(100, 1000), //Buffer to expand grid and include borders
+          scale: scale,
+          geometryType: 'polygon',
+        });
+    }
+    // Create grid and remove cells outside AOI
+    var Scale = 5000; // Set range in m to create spatial blocks
+    var grid = makeGrid(AOI, Scale);
+    var Grid = watermask.reduceRegions({collection: grid, reducer: ee.Reducer.mean()}).filter(ee.Filter.neq('mean',null));
+    right.addLayer(Grid, {},'Grid for spatail block cross validation', 0);
 
-    for (var i = 0; i < LandCovers.length; i++){
-      var geometries = LandCovers[i].geometry().geometries();   // extract individual geometries
-      var extractpolys = ee.FeatureCollection(geometries.map(addClass));
-      var extractpolys = extractpolys.randomColumn();  // add random number to each feature as property
-        
-      // Split into training/testing based on random number property
-      var trainingPartition = extractpolys.filter(ee.Filter.lt('random', split));
-      var testingPartition = extractpolys.filter(ee.Filter.gte('random', split));   
-        
-      // Sample random pixels from both sets of polygons
-      var trainpts = ee.FeatureCollection.randomPoints(trainingPartition.geometry(), (N*split));
-      var testpts = ee.FeatureCollection.randomPoints(testingPartition.geometry(), (N-N*split));
-        
-      // Extract values of current class from training data
-      var thisClass = ee.Feature(LandCovers[i]).get('Class');
-      
-      // Create a function to the class property
-      trainpts = trainpts.map(ptsClass);
-      testpts = testpts.map(ptsClass);
-      
-      // Extract pixel values from composite at sampled points
-      var trainPixelVals = l8srcomp.sampleRegions(trainpts, ['Class', 'label'], 30);
-      var testPixelVals = l8srcomp.sampleRegions(testpts, ['Class', 'label'], 30);
-      
-      // Combine points across classes
-      if (i === 0) {
-         trainVals = trainPixelVals;
-         testVals = testPixelVals;
-      } else {
-        trainVals = trainVals.merge(trainPixelVals);
-        testVals = testVals.merge(testPixelVals);
-      } 
+
+
+    //////////////////////////////////////
+    // Section 5 - Fitting SDM models
+    //////////////////////////////////////
+
+    // Define function to generate a vector of random numbers between 1 and 1000
+    function runif(length) {
+        return Array.apply(null, Array(length)).map(function() {
+            return Math.round(Math.random() * (1000 - 1) + 1);
+        });
     }
 
-Let’s look at each line:
+    // Define SDM function
+    // Activate the desired classifier, Random Forest or Gradient Boosting. 
+    // Note that other algorithms are available in GEE. See ee.Classifiers on the documentation for more information.
 
-We first define the arguments for the loop as before, to loop over each
-land cover category:
+    function SDM(x) {
+        var Seed = ee.Number(x);
+        
+        // Randomly split blocks for training and validation
+        var GRID = ee.FeatureCollection(Grid).randomColumn({seed:Seed}).sort('random');
+        var TrainingGrid = GRID.filter(ee.Filter.lt('random', split));  // Filter points with 'random' property < split percentage
+        var TestingGrid = GRID.filter(ee.Filter.gte('random', split));  // Filter points with 'random' property >= split percentage
 
-`for (var i = 0; i < LandCovers.length; i++){`
+        // Presence
+        var PresencePoints = ee.FeatureCollection(Data).filter(ee.Filter.eq('PresAbs',1)); //Filter all presence points
+        var TrPresencePoints = PresencePoints.filter(ee.Filter.bounds(TrainingGrid));  // Filter points with 'random' property < split percentage
+        var TePresencePoints = PresencePoints.filter(ee.Filter.bounds(TestingGrid));  // Filter points with 'random' property >= split percentage
 
-The second line extracts the individual geometry of each polygon for the
-first class `i` of the loop:
+        //Absence   
+        var AbsPoints = ee.FeatureCollection(Data).filter(ee.Filter.eq('PresAbs',0)); //Filter all absence points
+        var TrAbsencePoints = AbsPoints.filter(ee.Filter.bounds(TrainingGrid));  // Filter points with 'random' property < split percentage
+        var TeAbsencePoints = AbsPoints.filter(ee.Filter.bounds(TestingGrid));  // Filter points with 'random' property >= split percentage
 
-`var geometries = LandCovers[i].geometry().geometries();`
+        // Merge points
+        var trainingPartition = TrPresencePoints.merge(TrAbsencePoints);
+        var testingPartition = TePresencePoints.merge(TeAbsencePoints);
+        
+        // Extract local covariate values from multiband predictor image at training points
+        var trainPixelVals = predictors.sampleRegions({collection: trainingPartition, properties: ['PresAbs'], scale: GrainSize, tileScale: 16});
 
-The third line applies the function `addClass()` to each individual
-geometry:
+        // Classify using random forest 
+        var Classifier = ee.Classifier.smileRandomForest({
+           numberOfTrees: 500, //The number of decision trees to create.
+           variablesPerSplit: null, //The number of variables per split. If unspecified, uses the square root of the number of variables.
+           minLeafPopulation: 10,//Only create nodes whose training set contains at least this many points. Integer, default: 1
+           bagFraction: 0.5,//The fraction of input to bag per tree. Default: 0.5.
+           maxNodes: null,//The maximum number of leaf nodes in each tree. If unspecified, defaults to no limit.
+           seed: Seed//The randomization seed.
+          });
+        
+        // Classify using gradient boosting 
+        // var ClassifierPr = ee.Classifier.smileGradientTreeBoost({
+        //   numberOfTrees:500, //The number of decision trees to create.
+        //   shrinkage: 0.005, //The shrinkage parameter in (0, 1) controls the learning rate of procedure. Default: 0.005
+        //   samplingRate: 0.7, //The sampling rate for stochastic tree boosting. Default 0.07
+        //   maxNodes: null, //The maximum number of leaf nodes in each tree. If unspecified, defaults to no limit.
+        //   loss: "LeastAbsoluteDeviation", //Loss function for regression. One of: LeastSquares, LeastAbsoluteDeviation, Huber.
+        //   seed:Seed //The randomization seed.
+        // });
+      
+        // Presence probability 
+        var ClassifierPr = Classifier.setOutputMode('PROBABILITY').train(trainPixelVals, 'PresAbs', bands); 
+        var ClassifiedImgPr = predictors.select(bands).classify(ClassifierPr);
+        
+        // Binary presence/absence map
+        var ClassifierBin = Classifier.setOutputMode('CLASSIFICATION').train(trainPixelVals, 'PresAbs', bands); 
+        var ClassifiedImgBin = predictors.select(bands).classify(ClassifierBin);
+       
+        return ee.List([ClassifiedImgPr, ClassifiedImgBin, trainingPartition, testingPartition]);
+      
+    }
 
-`var extractpolys = ee.FeatureCollection(geometries.map(addClass));`
 
-And the next line adds a random number as a new property to the feature.
-We will use this random number to split the data set into training and
-validation:
+    // Define partition for training and testing data
+    var split = 0.70;  // The proportion of the blocks used to select training data
 
-`extractpolys = extractpolys.randomColumn();`
+    // Define number of repetitions
+    var numiter = 10;
 
-Using the filter `ee.Filter.lt()` (less than) and `ee.Filter.gte()`
-(greater or equal than) we split the polygons into training and
-validation using the random number we created in the previous line.
+    // Fit SDM 
+    // Create random seeds
+    var RanSeeds = runif(numiter);
+    var results = ee.List(RanSeeds).map(SDM);
+    // Extract results from list
+    var results = results.flatten();
+    //print(results); //Activate this line to visualize all elements
 
-`var trainingPartition = extractpolys.filter(ee.Filter.lt('random', split));`
+    ////////////////////////////////////////////////////////////////////
+    // Section 6 - Extracting and displaying model prediction results
+    ////////////////////////////////////////////////////////////////////
 
-`var testingPartition = extractpolys.filter(ee.Filter.gte('random', split));`
+    // Habitat suitability
 
-Now we will create random points inside those polygons, first the ones
-for training and then the ones for testing. For this, we use the
-function `randomPoints()` that takes the polygon geometries as the first
-argument and the number of points to create as the second. We will
-divide the number of points we previously specified into 70 and 30%.
+    // Set visualization parameters
+    var visParams = {
+      min: 0,
+      max: 0.8,
+      palette: ["#440154FF","#482677FF","#404788FF","#33638DFF","#287D8EFF",
+      "#1F968BFF","#29AF7FFF","#55C667FF","#95D840FF","#DCE319FF"],
+    };
 
-`var trainpts = ee.FeatureCollection.randomPoints(trainingPartition.geometry(), (N*split));`
+    // Extract all model predictions
+    var images = ee.List.sequence(0,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
 
-`var testpts = ee.FeatureCollection.randomPoints(testingPartition.geometry(), (N-N*split));`
+    // You can add all the individual model predictions to the map. The number of layers to add will depend on how many iterations you selected.
 
-The created random points do not have the class assigned. The next three
-lines add the class to the point depending on which polygon they come
-from that corresponds to the cycle of the loop. Remember that in the lop
-we first perform all these functions to class 1 and then 2 and so on.
+    // left.addLayer(ee.Image(images.get(0)), visParams, 'Run1');
+    // left.addLayer(ee.Image(image.get(1)), visParams, 'Run2');
 
-`var thisClass = ee.Feature(LandCovers[i]).get('Class');`
+    // Calculate mean of all individual model runs
+    var ModelAverage = ee.ImageCollection.fromImages(images).mean();
 
-`trainpts = trainpts.map(ptsClass);`
+    // Add final habitat suitability layer and presence locations to the map
+    left.addLayer(ModelAverage, visParams, 'Habitat Suitability');
+    left.addLayer(Data, {color:'red'}, 'Presence', 1);
 
-`testpts = testpts.map(ptsClass);`
+    // Create legend for habitat suitability map.
+    var legend = ui.Panel({style: {position: 'bottom-left', padding: '8px 15px'}});
 
-So far we just have created the random points for validation and testing
-on the class. Now the important part, get the pixel values from the
-image composite. For this, we use the function `sampleRegions`. The
-resulting variable will be the points with all the pixel values for each
-band and the corresponding class as properties. The number 30 is the
-spatial resolution of the Landsat image.
+    legend.add(ui.Label({
+      value: "Habitat suitability",
+      style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 4px 0', padding: '0px'}
+    }));
 
-`var trainPixelVals = l8srcomp.sampleRegions(trainpts, ['Class'], 30);`
+    var colors = ["#DCE319FF","#287D8EFF","#440154FF"];
+    var names = ['High', 'Medium','Low'];
+    var entry;
+    for (var x = 0; x<3; x++){
+      entry = [
+        ui.Label({style:{color:colors[x],margin: '0 0 4px 0'}, value:'██'}),
+        ui.Label({value: names[x],style: {margin: '0 0 4px 4px'}})
+      ];
+      legend.add(ui.Panel(entry, ui.Panel.Layout.Flow('horizontal')));
+    }
 
-`var testPixelVals = l8srcomp.sampleRegions(testpts, ['Class'], 30);`
+    legend.add(ui.Panel(
+      [ui.Label({value: "Presence locations",style: {fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0'}}),
+       ui.Label({style:{color:"red",margin: '0 0 0 4px'}, value:'◉'})],
+      ui.Panel.Layout.Flow('horizontal')));
 
-Finally, we have a conditional statement in order to combine all the
-points created for the class. If the loop is going trough the first
-class, then it is saved into the previously created variables (trainVals
-or testVals). If the loop is going trough the second, third, etc. cycle,
-then the points are merged to the variables. This is needed because you
-cannot merge points into an empty variable.
+    left.add(legend);
 
-`if (i === 0) {      trainVals = trainPixelVals;      testVals = testPixelVals;   } else {     trainVals = trainVals.merge(trainPixelVals);     testVals = testVals.merge(testPixelVals); }  }`
 
-Now, lets print and inspect the trainVals variable.
+    // Distribution map
 
-    print(trainVals)
+    // Extract all model predictions
+    var images2 = ee.List.sequence(1,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
 
-### Applying the classifier
+    // Calculate mean of all indivudual model runs
+    var DistributionMap = ee.ImageCollection.fromImages(images2).mode();
 
-Now that we have the training and validation data sets, we can move to
-the next step, training the classifier algorithm. There are many
-different type of classifiers. You can look at them typing ee.Classifier
-into the search bar of the Docs tab.
+    // Add final distribution map and presence locations to the map
+    right.addLayer(DistributionMap, 
+      {palette: ["white", "green"], min: 0, max: 1}, 
+      'Potential distribution');
+    right.addLayer(Data, {color:'red'}, 'Presence', 1);
 
-For this tutorial, we are going to use the random forest classifier.
+    // Create legend for distribution map
+    var legend2 = ui.Panel({style: {position: 'bottom-left',padding: '8px 15px'}});
+    legend2.add(ui.Label({
+      value: "Potential distribution map",
+      style: {fontWeight: 'bold',fontSize: '18px',margin: '0 0 4px 0',padding: '0px'}
+    }));
 
-The first thing we need to do is to define the bands that we are going
-to use for the classification.
+    var colors2 = ["green","white"];
+    var names2 = ['Presence', 'Absence'];
+    var entry2;
+    for (var x = 0; x<2; x++){
+      entry2 = [
+        ui.Label({style:{color:colors2[x],margin: '0 0 4px 0'}, value:'██'}),
+        ui.Label({value: names2[x],style: {margin: '0 0 4px 4px'}})
+      ];
+      legend2.add(ui.Panel(entry2, ui.Panel.Layout.Flow('horizontal')));
+    }
 
-    // Indicate input bands for classifier
-    var bands = ['blue', 'green', 'red', 'nir', 'swir1', 'ndvi']; 
+    legend2.add(ui.Panel(
+      [ui.Label({value: "Presence locations",style: {fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0'}}),
+       ui.Label({style:{color:"red",margin: '0 0 4px 4px'}, value:'◉'})],
+      ui.Panel.Layout.Flow('horizontal')));
 
-Now we will apply the random forest classifier using the function
-`ee.Classifier.smileRandomForest()`. The argument is the number of
-decision trees to create. We will use 100 for fast computation, but you
-should use at least 500. The `train()` function specifies the collection
-of features to rain the classifier, using the specified numeric
-properties of each feature as training data.
+    right.add(legend2);
 
-    // Classify using Random Forest
-    var rfClassifier = ee.Classifier.smileRandomForest(100).train(trainVals, 'Class', bands);
+    /////////////////////////////////////////
+    // Section 7 - Accuracy assessment
+    /////////////////////////////////////////
 
-Once we have trained the classifier, we can classify the image composite
-(l8srcomp) using the `classify()` function and providing the trained
-classifier as the argument. Note that we only select the bands from the
-image that we used to train the classifier.
+    // Extract testing/validation datasets
+    var TestingDatasets = ee.List.sequence(3,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+                          return results.get(x)});
 
-    var rfClassified = l8srcomp.select(bands).classify(rfClassifier);
+    // Double check that you have a satisfactory number of points for model validation
+    print('Number of presence and absence points for model validation', ee.List.sequence(0,ee.Number(numiter).subtract(1),1)
+    .map(function(x){
+      return ee.List([ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',1)).size(),
+             ee.FeatureCollection(TestingDatasets.get(x)).filter(ee.Filter.eq('PresAbs',0)).size()]);
+    })
+    );
 
-And now you have a classified image.
+    // Define functions to estimate, sensitivity, specificity and precision.
+    function getAcc(img,TP){
+      var Pr_Prob_Vals = img.sampleRegions({collection: TP, properties: ['PresAbs'], scale: GrainSize, tileScale: 16});
+      var seq = ee.List.sequence({start: 0, end: 1, count: 25});
+      return ee.FeatureCollection(seq.map(function(cutoff) {
+      var Pres = Pr_Prob_Vals.filterMetadata('PresAbs','equals',1);
+      // true-positive and true-positive rate, sensitivity  
+      var TP =  ee.Number(Pres.filterMetadata('classification','greater_than',cutoff).size());
+      var TPR = TP.divide(Pres.size());
+      var Abs = Pr_Prob_Vals.filterMetadata('PresAbs','equals',0);
+      // false-negative
+      var FN = ee.Number(Pres.filterMetadata('classification','less_than',cutoff).size());
+      // true-negative and true-negative rate, specificity  
+      var TN = ee.Number(Abs.filterMetadata('classification','less_than',cutoff).size());
+      var TNR = TN.divide(Abs.size());
+      // false-positive and false-positive rate
+      var FP = ee.Number(Abs.filterMetadata('classification','greater_than',cutoff).size());
+      var FPR = FP.divide(Abs.size());
+      // precision
+      var Precision = TP.divide(TP.add(FP));
+      // sum of sensitivity and specificity
+      var SUMSS = TPR.add(TNR);
+      return ee.Feature(null,{cutoff: cutoff, TP:TP, TN:TN, FP:FP, FN:FN, TPR:TPR, TNR:TNR, FPR:FPR, Precision:Precision, SUMSS:SUMSS});
+      }));
+    }
 
-The final step is to display the classification on the map.
+    // Calculate AUC of the Receiver Operator Characteristic
+    function getAUCROC(x){
+      var X = ee.Array(x.aggregate_array('FPR'));
+      var Y = ee.Array(x.aggregate_array('TPR')); 
+      var X1 = X.slice(0,1).subtract(X.slice(0,0,-1));
+      var Y1 = Y.slice(0,1).add(Y.slice(0,0,-1));
+      return X1.multiply(Y1).multiply(0.5).reduce('sum',[0]).abs().toList().get(0);
+    }
 
-Use a pallet with colors that are representative of the land cover
-classes.
+    function AUCROCaccuracy(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return getAUCROC(Acc);
+    }
 
-    //Generate pallet   
-    var colors = ['darkgreen','orange','yellow','darkblue']
 
-    // Add classified image to the map
-    Map.addLayer(rfClassified.clip(StudyArea), {
-      palette: colors, 
-      min: 0, 
-      max: (LandCovers.length-1) // #classes-1
-    }, 'Land Cover Map');
+    var AUCROCs = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(AUCROCaccuracy);
+    print('AUC-ROC:', AUCROCs);
+    print('Mean AUC-ROC', AUCROCs.reduce(ee.Reducer.mean()));
 
-### Model validation
+    /////////////////////////////////////////////////////////////////////////////////
+    // Section 8 - Create a custom binary distribution map based on best threshold
+    /////////////////////////////////////////////////////////////////////////////////
 
-The last task in a classification is to test the accuracy of the model.
-Thus, how well the classifier actually classified the image. If the
-classification is not really accurate, you need to modify the training
-data and repeat the process until you get an accuracy value that
-satisfies your work.
+    // Calculating the potential distribution map based on the threshold 
+    // that maximizes the sum of sensitivity and specificity is computationally intensive and 
+    // may need to be executed in batch mode for a large number of iterations.
+    // In batch mode, the final image needs to exported to Google Drive and opened in 
+    // another software for visualization (or imported to GEE as an asset for visualization.
 
-The first step is a familiar one now, use the `classify()` function
-again, but this time on the 30% validation data set.
+    // Function to extract threshold values
+    function getThreshold(x){
+      var HSM = ee.Image(images.get(x));
+      var TData = ee.FeatureCollection(TestingDatasets.get(x));
+      var Acc = getAcc(HSM, TData);
+      return Acc.sort({property:'SUMSS',ascending:false}).first().get("cutoff");
+    }
 
-Next, you will apply the `errorMatrix()` function that computes an error
-matrix by comparing the actual values of the training data with those
-predicted by the classifier. You need to specify in the arguments the
-name of the property containing the actual value and the name of the
-property containing the predicted value. You can print the error matrix
-in the console.
+    // Extract threshold values
+    var Thresholds = ee.List.sequence(0,ee.Number(numiter).subtract(1),1).map(getThreshold);
+    var MT = ee.Number(Thresholds.reduce(ee.Reducer.mean()));
+    print('Mean threshold:', MT);
 
-    // Check the accuracy of your classification
-    var rfTest = testVals.classify(rfClassifier);
-    var rfAccuracy = rfTest.errorMatrix('Class', 'classification');
-    print('RF Error Matrix: ', rfAccuracy);
+    // Transform probability model output into a binary map using the defined threshold and set NA into -9999
+    var DistributionMap2 = ModelAverage.gte(MT).unmask(-9999);
 
-You can use the confusion matrix to estimate the accuracy of each band,
-and with that, see for which classes the model is performing better or
-worse. Here, we will use the function `accuracy()` to get the overall
-accuracy of the classification, defined as correct classified pixels
-over the total.
+    // Export final model to drive
+    Export.image.toDrive({
+      image: DistributionMap2,
+      description: 'filename',
+      scale: GrainSize,
+      maxPixels: 1e10,
+      region: AOI
+    });
 
-    var frOvAccuracy = rfAccuracy.accuracy().getInfo();
-    print('RF Overall Accuracy: ', frOvAccuracy);
 
-## Species Distribution Models
+    ///////////////////////////////////////
+    // Section 9 - Export outputs
+    ///////////////////////////////////////
 
-The tutorial for SDMs can be found [here](https://ramirodcrego.com/teaching/gee/).
+    // Export final outputs to Google Drive
+    /*
+    Export.image.toDrive({
+      image: DistributionMap, //Object to export
+      description: 'PotentialDistribution', //Name of the file
+      scale: GrainSize, //Spatial resolution of the exported raster
+      maxPixels: 1e10,
+      region: AOI //Area of interest
+    });
+
+    Export.image.toDrive({
+      image: ModelAverage, //Object to export
+      description: 'HSI', //Name of the file
+      scale: GrainSize, //Spatial resolution of the exported raster
+      maxPixels: 1e10,
+      region: AOI //Area of interest
+    });
+
+    // Export training and validation data sets
+
+    // Extract training datasets
+    var TrainingDatasets = ee.List.sequence(1,ee.Number(numiter).multiply(4).subtract(1),4).map(function(x){
+      return results.get(x)});
+
+    // If you are interested in exporting any of the training or testing data sets used for modelling,
+    // you need to extract the feature collections from the list and export them.
+    // Here an example to export the trainign and validation data sets from the first iteration. 
+    // For other iterations you need to change the number in the get function. In JavaScript the first element of the list is 0.
+
+    Export.table.toDrive({
+      collectio : TrainingDatasets.get(0),
+      description: 'TestingDataRun1',
+      fileFormat: 'CSV',
+    });
+
+    Export.table.toDrive({
+      collectio : TestingDatasets.get(0),
+      description: 'TestingDataRun1',
+      fileFormat: 'CSV',
+    });
+    */
+
+------------------------------------------------------------------------
+
+## References
+
+Araújo, M. B., Anderson, R. P., Barbosa, A. M., Beale, C. M., Dormann,
+C. F., Early, R., Garcia, R. A., Guisan, A., Maioran, L., Naimi, B.,
+O’Hara, R. B., Zimmermann, N. E., & Rahbek, C. (2019). Standards for
+distribution models in biodiversity assessments. Science Advances, 5(1),
+1–12. <https://doi.org/10.1126/sciadv.aat4858>
+
+Barbet-Massin, M., Jiguet, F., Albert, C. H., & Thuiller, W. (2012).
+Selecting pseudo-absences for species distribution models: How, where
+and how many? Methods in Ecology and Evolution, 3(2), 327–338.
+<https://doi.org/10.1111/j.2041-210X.2011.00172.x>
+
+Chefaoui, R. M., & Lobo, J. M. (2008). Assessing the effects of
+pseudo-absences on predictive distribution model performance. Ecological
+Modelling, 210(4), 478–486.
+<https://doi.org/10.1016/j.ecolmodel.2007.08.010>
+
+Evans, J. S., Murphy, M. A., Holden, Z. A., & Cushman, S. A. (2011).
+Modeling Species Distribution and Change Using Random Forest. In C. A.
+Drew, Y. F. Wiersma, & F. Huettmann (Eds.), Predictive Species and
+Habitat Modeling in Landscape Ecology: Concepts and Applications
+(pp. 139–159). New York, NY: Springer New York.
+<https://doi.org/10.1007/978-1-4419-7390-0_8>
+
+Farr, T. G., Rosen, P. A., Caro, E., Crippen, R., Duren, R., Hensley,
+S., Kobrick, M., Paller, M., Rodriguez, E., Roth, L., Seal, D., Shaffer,
+S., Shimada, J., Umland, J., Werner, M., Oskin, M., Burbank, D.,
+&Alsdorf, D. (2007). The shuttle radar topography mission. Reviews of
+Geophysics, 45(2), RG2004. <https://doi.org/10.1029/2005RG000183>
+
+Fielding, A. H., & Bell, J. F. (1997). A review of methods for the
+assessment of prediction errors in conservation presence/absence models.
+Environmental Conservation, 24(1), 38–49.
+<https://doi.org/10.1017/S0376892997000088>
+
+Guisan, A., Thuiller, W., & Zimmermann, N. (2017). Habitat Suitability
+and Distribution Models: With Applications in R. Cambridge, UK.:
+Cambridge University Press. <https://doi.org/doi:10.1017/9781139028271>
+
+Hijmans, R.J., Cameron, S.E., Parra, J.L., Jones, P.G., & Jarvis, A.
+(2005). Very High Resolution Interpolated Climate Surfaces for Global
+Land Areas. International Journal of Climatology 25: 1965-1978.
+
+Hijmans, R. J., Phillips, S., Leathwick, J., & Elith, J. (2017). dismo:
+Species distribution modeling. R package version 1.1-4.
+
+Kindt, R. (2018). Ensemble species distribution modelling with
+transformed suitability values. Environmental Modelling and Software,
+100, 136–145. <https://doi.org/10.1016/j.envsoft.2017.11.009>
+
+Leroy, B., Delsol, R., Hugueny, B., Meynard, C. N., Barhoumi, C.,
+Barbet-Massin, M., & Bellard, C. (2018). Without quality
+presence–absence data, discrimination metrics such as TSS can be
+misleading measures of model performance. Journal of Biogeography,
+45(9), 1994–2002. <https://doi.org/10.1111/jbi.13402>
+
+Liu, C., Newell, G., & White, M. (2016). On the selection of thresholds
+for predicting species occurrence with presence-only data. Ecology and
+Evolution, 6(1), 337–348. <https://doi.org/10.1002/ece3.1878>
+
+Marmion, M., Parviainen, M., Luoto, M., Heikkinen, R. K., & Thuiller, W.
+(2009). Evaluation of consensus methods in predictive species
+distribution modelling. Diversity and Distributions, 15(1), 59–69.
+<https://doi.org/10.1111/j.1472-4642.2008.00491.x>
+
+Mittermeier, R. A., Rylands, A. B., & Wilson, D. E., (Eds.). (2013).
+Handbook of the Mammals of the World: Volume 3, Primates. Barcelona,
+Spain.: Linx Ediciones.
+
+Phillips, S. J., Anderson, R. P., Dudík, M., Schapire, R. E., & Blair,
+M. E. (2017). Opening the black box: an open-source release of Maxent.
+Ecography, 40(7), 887–893. <https://doi.org/10.1111/ecog.03049>
+
+Phillips, S. J., Anderson, R. P., & Schapire, R. E. (2006). Maximum
+entropy modeling of species geographic distributions. Ecological
+Modelling, 190(3–4), 231–259.
+<https://doi.org/10.1016/j.ecolmodel.2005.03.026>
+
+Phillips, S. J., Dudík, M., Elith, J., Graham, C. H., Lehmann, A.,
+Leathwick, J., & Ferrier, S. (2009). Sample selection bias and
+presence-only distribution models: Implications for background and
+pseudo-absence data. Ecological Applications, 19(1), 181–197.
+<https://doi.org/10.1890/07-2153.1>
+
+Roberts, D. R., Bahn, V., Ciuti, S., Boyce, M. S., Elith, J.,
+Guillera-Arroita, G., Hauenstein, S., Lahoz-Monford, J. J., Schröder,
+B., Thuiller, W., Warton, D. I., Wintle, B. A., Hartig, F., & Dormann,
+C. F. (2017). Cross-validation strategies for data with temporal,
+spatial, hierarchical, or phylogenetic structure. Ecography, 40(8),
+913–929. <https://doi.org/10.1111/ecog.02881>
+
+Senay, S. D., Worner, S. P., & Ikeda, T. (2013). Novel Three-Step
+Pseudo-Absence Selection Technique for Improved Species Distribution
+Modelling. PLoS ONE, 8(8).
+<https://doi.org/10.1371/journal.pone.0071218>
+
+Sillero, N., Arenas-Castro, S., Enriquez‐Urzelai, U., Vale, C. G.,
+Sousa-Guedes, D., Martínez-Freiría, F., … Barbosa, A. M. (2021). Want to
+model a species niche? A step-by-step guideline on correlative
+ecological niche modelling. Ecological Modelling, 456.
+<https://doi.org/10.1016/j.ecolmodel.2021.109671>
+
+Sofaer, H. R., Hoeting, J. A., & Jarnevich, C. S. (2019). The area under
+the precision-recall curve as a performance metric for rare binary
+events. Methods in Ecology and Evolution, 10(4), 565–577.
+<https://doi.org/10.1111/2041-210X.13140>
+
+Valavi, R., Elith, J., Lahoz-Monfort, J. J., & Guillera-Arroita, G.
+(2019). blockCV: An r package for generating spatially or
+environmentally separated folds for k-fold cross-validation of species
+distribution models. Methods in Ecology and Evolution, 10(2), 225–232.
+<https://doi.org/10.1111/2041-210X.13107>

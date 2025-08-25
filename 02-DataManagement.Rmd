@@ -636,7 +636,7 @@ create a feature, you need to provide a geometry, but also a dictionary
 with other properties of interest.
 
 ```{js, eval=F}
-var polyFeature = ee.Feature(polygon, {Area: 'Kanya'});
+var polyFeature = ee.Feature(polygon, {Area: 'Kenya'});
 
 ```
 

@@ -173,8 +173,8 @@ Photogrammetry and Remote Sensing, 164, 152-170,
 ```{r child = '03-Practice.Rmd'}
 ```
 
-<!-- ```{r child = '04-IntroductionToGIS.Rmd'} -->
-<!-- ``` -->
+```{r child = '04-SDMs.Rmd'}
+```
 
-<!-- ```{r child = '05-Addax_DistributionModel.Rmd'} -->
-<!-- ``` -->
+```{r child = '05-DistSamp.Rmd'}
+```
