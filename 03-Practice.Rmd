@@ -2,11 +2,146 @@
 
 This third section is intended for you to practice what you have learned and then connect it to R, so we start to bring back things we have learned in the past.
 
-We will first start by learning the basics of making maps in R.
+
+### Export an image from GEE
+
+We will first start by creating an image in GEE and then exporting it to Google Drive. 
+
+Here, I present an example to map fires across the Mara region using the `ESA/CCI/FireCCI/5_1` product. This MODIS Fire_cci Burned Area product is a monthly global ~250m spatial resolution dataset containing information on burned area. The dataset includes, among other information, for each pixel the estimated day of the first detection of the fire. For a complete description of this dataset, see the information available on GEE.
+
+#### Define your area of interest
+
+We can recall from the previous lesson how to use the World PA polygons to use the Mara and Great Mara Conservancies boundaries as our area of interest (AOI).
+
+Note, that I have created a geometry that I then use to filter the entire PA feature collection.
+
+```{js, eval=F}
+var PA = ee.FeatureCollection('WCMC/WDPA/current/polygons');
+// Filter to the Masai Mara
+var AOI = PA.filterBounds(geometry);
+Map.centerObject(AOI, 8)
+Map.addLayer(AOI, {}, 'Masai Mara')
+```
+
+#### Load fire dataset
+
+We now need to load the fire image collection and filter it to the time frame we want. For this example, we will work with the year 2020. We then need to select the `BunrDate` band. This represents the estimated day of the year of the first detection of the burn.
+
+```{js, eval=F}
+// Visualize FireCCI51 for one year
+var annualFire = ee.ImageCollection('ESA/CCI/FireCCI/5_1')
+                  .filterDate('2020-01-01', '2020-12-31')
+                  .select('BurnDate');
+print(annualFire)
+```
+
+#### Calculate area burnt per month
+
+Next, we will create a function to calculate the area of each burn pixel. That is, we need to keep only burn pixels and then multiply my 0.25 to get the area in square kilometers. Then, we can map the function across the image collection.
+
+```{js, eval=F}
+var burnDateToArea = function(img){
+  var firearea = img.gte(0).multiply(0.25) // 0.5 * 0.5 km
+                    .rename('BurntArea');
+  return img.addBands(firearea);
+};
+
+var annualBurntArea = annualFire
+            .map(burnDateToArea);
+```
+
+Next, we are going to plot the annual burnt area across the year. For this, we use the `ui.Chart.image.series()` function in GEE. We use a reducer to sum all the burnt area across the region for each month. Note that the function to calculate pixel area is not handy to get an overall estimate of burnt area.
+
+```{js, eval=F}
+// Plot annual burnt area time series aggregated over the region of interest (AOI)
+print(ui.Chart.image.series(annualBurntArea.select('BurntArea'), AOI, ee.Reducer.sum(), 250) // 250m resolution
+    .setOptions({
+      title: 'Total annual burnt area for PA',
+      hAxis:
+            {title: 'Years', titleTextStyle: {italic: false, bold: true}},
+      vAxis: {
+            title: 'Burnt area (km2)',
+            titleTextStyle: {italic: false, bold: true}
+          },
+      lineWidth: 1,
+      pointSize: 3,
+}));
+```
+
+You should get something like this chart:
+
+<center>
+
+<figure>
+<img src="FigCh3/ee-chart.png" style="width:80.0%"
+alt="" />
+</figure>
+
+</center>
+
+#### Plot image
+
+We can also visualize the image, with each color representing the last time at which the area was burnt. For this, we need to get the maximum value across the year image collection.
+
+```{js, eval=F}
+// Use a circular palette to assign colors to date of first detection
+var baVis = {
+  min: 1,
+  max: 366,
+  palette: [
+    'ff0000', 'fd4100', 'fb8200', 'f9c400', 'f2ff00', 'b6ff05',
+    '7aff0a', '3eff0f', '02ff15', '00ff55', '00ff99', '00ffdd',
+    '00ddff', '0098ff', '0052ff', '0210ff', '3a0dfb', '7209f6',
+    'a905f1', 'e102ed', 'ff00cc', 'ff0089', 'ff0047', 'ff0004'
+  ]
+};
+var maxBA = annualBurntArea.select("BurnDate").max().clip(AOI);
+print(maxBA)
+
+Map.addLayer(maxBA, baVis, 'Burned Area');
+```
+
+<center>
+
+<figure>
+<img src="FigCh3/burntdate.png" style="width:80.0%"
+alt="" />
+</figure>
+
+</center>
+
+#### Export data
+
+Finally, we export the maxBA image and the PA polygons to Google Drive. We will use this products to make a map in R.
+
+Something important is that we need to provide some number to the background pixels, which we want later to be NAs, so pixels with no data. We will do this by using the function `unmask()` and providing all background pixels a value of -9999. We will then transform those numbers to NAs in R.
+
+```{js, eval=F}
+// Export raster image to Google Drive
+Export.image.toDrive({
+  image: maxBA.unmask(-9999), 
+  region: AOI,
+  description: 'BurntAreas',
+  folder: 'GIS',
+  scale: 250,
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e10
+});
+
+// Export feature to Google Drive
+Export.table.toDrive({
+  collection: AOI,  
+  description: 'PAs',
+  fileFormat: 'SHP',
+  folder: 'GIS'
+});
+```
+
+All the code to conduct this exercise can be retrieved from this [link](https://code.earthengine.google.com/be7804ad2f811e11c4f6658bf20bb634).
 
 ### Creating a map in R
 
-We will now move into R to learn how to make a cool map. 
+We will now move into R to learn how to make a cool map. For this, we will be learning the basics of making maps in R.
 
 Before we start, and if you are not using an R project, do not forget to set your working directory
 
@@ -15,7 +150,7 @@ setwd("...")
 # don't forget to set the directory to your own data folder!!
 ```
 
-### Making pretty maps with R
+#### Making pretty maps with R
 
 R  offers the opportunity to create beautiful high quality maps for publication. This saves you from having to export all files to make the final maps in other software, such as ArcGIS or QGIS.
 
@@ -25,7 +160,7 @@ When combining R powerful data processing with visualization packages, we can mo
 1. Static maps
 2. Interactive maps
 
-We will use the 'tmap' package, which is a great new addition to R tools. Tmap is a powerful and flexible package with a concise syntax that is similar to ggplot2 users. It also has the unique capability to generate static and interactive maps using the same code via tmap_mode().
+We will use the 'tmap' package, which is a great new addition to R tools. Tmap is a powerful and flexible package with a concise syntax that is similar to ggplot2 users. It also has the unique capability to generate static and interactive maps using the same code via `tmap_mode()`.
 
 ```{r}
 library(tmap)
@@ -151,19 +286,6 @@ You can navigate the map and click on each country to query the population size.
 
 ### Creating your own high quality map.
 
-#### Exporting an image from GEE
-
-We will start working in GEE, generating an image that shows the date at which each pixel was burnt during the year 2020. 
-
-For this, we will use the dataset: 
-
-This data ...
-
-The code on this section can be found [here](https://code.earthengine.google.com/b1c2e2681df2df0f54db5fcf1116bc70)
-
-
-#### Creating our map in R
-
 First, lets load necessary packages:
 
 ```{r, message=FALSE}
@@ -194,10 +316,10 @@ Now, we have all we need to make a map. We will start with a static map.
 ```{r}
 tmap_mode("plot")
 
-tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date")) +
-  tm_shape(PAs) + tm_borders(lty = 2) +
+tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date (Julian day)")) +
+  tm_shape(PAs) + tm_borders(lty = 1) +
   tm_compass(position = c("right", "top")) +
-  tm_scalebar(position = c("left", "bottom"), width = 14) + tm_layout(frame = FALSE, legend.outside = T, legend.frame = F, legend.title.size = 1, legend.text.size = 0.7) + tm_add_legend(type = c("lines"), fill = c('black'), labels = c("Conservancies"))
+  tm_scalebar(position = c("left", "bottom"), width = 30) + tm_layout(frame = FALSE, legend.outside = T, legend.frame = F, legend.title.size = 1, legend.text.size = 0.7) + tm_add_legend(type = c("lines"), fill = c('black'), labels = c("Conservancies"))
 ```
 
 And now interactive. 
@@ -205,9 +327,29 @@ And now interactive.
 ```{r}
 tmap_mode("view")
 
-tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date")) +
+tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date (Julian day)")) +
   tm_shape(PAs) + tm_borders(lty = 2)
 ```
+
+Bonus:
+
+Add the chart using `tm_logo()`:
+
+```{r}
+tmap_mode("plot")
+
+tm_shape(BurntA) + tm_raster(col.scale = tm_scale_continuous(values = heat.colors(9)), col.legend = tm_legend( "Burn date (Julian day)")) +
+  tm_shape(PAs) + tm_borders(lty = 1) +
+  tm_compass(position = c("right", "top")) +
+  tm_scalebar(position = c("left", "bottom"), width = 30) + tm_layout(frame = FALSE, legend.outside = T, legend.frame = F, legend.title.size = 1, legend.text.size = 0.7) + tm_add_legend(type = c("lines"), fill = c('black'), labels = c("Conservancies")) + 
+  tm_logo("FigCh3/ee-chart.png",
+          height=11, position = c(-0.1,1.1))
+```
+
+As you probably realized at this point, there are infinite opportunities to get creative, mix R and GEE skills to get very good maps. Importantly, when you create a map in R using code, updating those is as simple as changing the data, so when you are writing reports, making maps for each month can be quite simple. 
+
+Now, time to digest all this information and start playing with the code.
+
 ---
 
 ### Assignment 3
@@ -216,7 +358,7 @@ This activity is intended to practice the skills you have learned so far. What w
 
 1. [Easy to moderate] Once you have an image that you are happy with, export it to your Google Drive for an area of interest.
 
-2. [Moderate] Using the R code to make a map, try to create a nice map for your data.
+2. [Difficult] Using the R code to make a map, try to create a nice map for your data.
 
 3. [Difficult] Go back to GEE and create a set of points within your study area (Same you used to export the image). Export the points as a Shapefile to your Google Drive. Load the Shapefile to R, and extract the pixel values of the previously exported image to each point.
 
