@@ -1497,21 +1497,29 @@ distribution models. Methods in Ecology and Evolution, 10(2), 225–232.
 The idea of this assignment is that you can practice modifying the general workflow we presented here for implementing species distribution models in GEE. 
 
 Activity 1  [Moderate]
-Modify the general workflow presented in the video to fit an SDM using presence only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/`
+Modify the general workflow presented in the video to fit an SDM using presence only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/Perissodactyla`
+Note that this includes other species, so you need to filter the data to retain only the Plains zebra data.
 
 The model needs to include the following:
 - Grain size: 10000 m
-- Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/006/MOD13Q1) and human modification index (CSP/HM/GlobalHumanModification)
+
+- Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/061/MOD13A2) and human modification index (CSP/HM/GlobalHumanModification)
+
 - Create pseudo-absences randomly within the continent of Africa boundary (option 1 from the tutorial)
+
 - Define your own block size
+
 - Classifier: random forest
-- Iterations: 5
+
+- Iterations: 3
 
 Activity 2 [Advanced]
 
 Modify the previous model to:
 - Use the country of Kenya as your area of interest (Make sure you extract the geometry)
+
 - Define area to create pseudo-absences using option 3 (clusters).
+
 - Define a 500 m grain size
 
 Solutions code by clicking [here](https://code.earthengine.google.com/c550161bdb8fa961412d79d715462b32)
