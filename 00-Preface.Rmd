@@ -1,6 +1,6 @@
 ---
 title: "Introduction to Google Earth Engine for Ecologists and Practitioners"
-author: "Ramiro D Crego, Grant Connette, Jared Stabach"
+author: "Ramiro D Crego, Grant Connette, Jared A Stabach"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 always_allow_html: true
 output:
@@ -48,7 +48,7 @@ knit: (function(input_file, encoding) {
 
 Google Earth Engine is a cloud-based platform hosted by Google that uses
 Google’s high-performance and intrinsically parallel computing system
-that subdivides computations across the Google computational
+to subdivide computations across the Google computational
 infrastructure, accelerating computational processes (Gorelick et al.,
 2017). It has been primarily designed to process and analyze satellite
 imagery and geospatial datasets, making computationally demanding
@@ -58,27 +58,28 @@ use at no user cost. Thus, it is totally free.
 Up to 2008, using satellite imagery for data analysis was expensive. In
 2008, however, the United States Geological Survey (USGS) opted for a
 free and open policy on the use of the most popular satellite, Landsat
-(Woodcock et al., 2008). The release of Landsat catalog to be freely use
+(Woodcock et al., 2008). The release of the Landsat catalog for free use
 by the public opened enormously the possibilities to expand earth
 research (Woulder et al., 2019). However, with so much data available,
 the limitation became data processing rather than data gathering.
+
 Personal computers are generally limited in computation power to analyze
-the amount of data that a composite of Landsat images require and data
-storage is also limited. Supercomputers can do that job, but access them
-is only optional for researchers working in certain institutions. Google
+the amount of data that a composite of Landsat images require. Data
+storage is also limited. Supercomputers can do that job, but access to them
+is only an option for researchers working in certain institutions. Google
 opened the option for all users with internet access to operate on a
 high computing infrastructure through the new platform, Google Earth
 Engine.
 
-When the increase of satellite data accessibility is combined with free
+When satellite data accessibility is combined with free
 access to fast computing processes, researchers and students have the
-possibility to carry out extremely high computing demanding projects in
-matter of minutes. For ecologists, this has opened the horizons of
-research possibilities in unthinkable ways. And while lot of attention
+possibility to carry out computationally demanding projects in
+a matter of minutes. For ecologists, this has opened the horizons of
+research possibilities in unthinkable ways. And while a lot of attention
 has been put into the use of Google Earth Engine for remote sensing
 scientists (Tamimina et al., 2020), the tool has not reached yet the
 spatial ecological field in its full capacity. In this tutorial, we explore
-the different applications that this platform provides to analyze data
+different applications that this platform provides to analyze data
 for projects focused on spatial ecology.
 
 ### Goals
