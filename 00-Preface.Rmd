@@ -63,7 +63,7 @@ by the public opened enormously the possibilities to expand earth
 research (Woulder et al., 2019). However, with so much data available,
 the limitation became data processing rather than data gathering.
 
-Personal computers are generally limited in computation power to analyze
+Personal computers are generally limited in computational power to analyze
 the amount of data that a composite of Landsat images require. Data
 storage is also limited. Supercomputers can do that job, but access to them
 is only an option for researchers working in certain institutions. Google
