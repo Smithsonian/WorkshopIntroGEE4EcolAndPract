@@ -354,9 +354,9 @@ Now, time to digest all this information and start playing with the code.
 
 ### Assignment 3
 
-This activity is intended to practice the skills you have learned so far. What we want you to do now is to spend some time exploring different data sets available in GEE and practicing code. There are so many things to explore. Climatic data, Land Cover products, etc. 
+This activity is intended to practice the skills you have learned so far. What we want you to do now is to spend some time exploring different datasets available in GEE and practicing code. There are so many things to explore. Climatic data, Land Cover products, etc. 
 
-1. [Easy to moderate] Once you have an image that you are happy with, export it to your Google Drive for an area of interest.
+1. [Easy to moderate] Once you have an image that you are happy with, export it to your Google Drive for an area of interest (Keep the area of interest relatively small).
 
 2. [Difficult] Using the R code to make a map, try to create a nice map for your data.
 

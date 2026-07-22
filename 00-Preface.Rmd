@@ -85,8 +85,7 @@ for projects focused on spatial ecology.
 ### Goals
 
 This workshop is intended to provide an introduction to GEE for participants 
-in the fields of ecology, conservation, and wildlife biology. The course will 
-begin by covering the basics of GEE and JavaScript coding before moving on to 
+in the fields of ecology, conservation, wildlife biology, and wildlife management. The course will begin by covering the basics of GEE and JavaScript coding before moving on to 
 spatial data manipulation and analyses. Participants need no prior experience 
 working with GEE, but should have a basic understanding of GIS data and concepts, 
 such as raster (including stacks or multi-band images), vectors, projections, and spatial resolution. This course is a continuation of a previous year’s module “Introduction to Geographic Information Systems (GIS) and Wildlife Population Monitoring in R.” At the conclusion of the course, we will combine GEE workflows with population analysis in R, with a goal of creating a community of practitioners that have the skills necessary to expand upon science-based monitoring of wildlife populations across Kenya.
@@ -99,7 +98,7 @@ this course, you will be able to:
  * Access and manipulate spatial data from the GEE catalog
  * Understand the fundamentals of JavaScript code
  * Perform basic spatial data processing (i.e., standard GIS operations)
- * Gain experience with species distribution modeling (i.e., random forest, MaxEnt)
+ * Gain experience with species distribution modeling using machine learning techniques
  * Download GEE data to incorporate in R workflows to assess species abundance
  * Use R to create maps and visualize data
  * Make maps that show predictions based on statistical models
@@ -112,7 +111,7 @@ model techniques for data analysis. The main goal is that after the workshop, yo
 The tutorial is organized in 5 main sections. Section 1 is an
 introduction to Google Earth Engine and the JavaScript language we use
 to code. Section 2 will guide you on the use of images and geometries,
-or raster and vector data. Section 3 is an opportunity to lonk GEE with other 
+or raster and vector data. Section 3 is an opportunity to link GEE with other 
 interfaces like R to make visualizations of your data. Section 4 is an introduction 
 to the implementation of Species Distribution Models with GEE. Section 5 will
 bring us back to Distance Sampling and the use of covariables extracted with GEE in
