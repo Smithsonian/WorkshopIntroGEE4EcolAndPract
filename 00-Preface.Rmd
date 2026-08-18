@@ -175,6 +175,3 @@ Photogrammetry and Remote Sensing, 164, 152-170,
 
 ```{r child = '04-SDMs.Rmd'}
 ```
-
-```{r child = '05-DistSamp.Rmd'}
-```
