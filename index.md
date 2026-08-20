@@ -17,29 +17,24 @@ Ramiro D. Crego 1,2, Jared A. Stabach 1 and Grant Connette 1,2
 
 ------------------------------------------------------------------------
 
-This is a guide for modeling species distributions and habitat
-suitability in Google Earth Engine. This guide is intended to explain
+This is a guide for modeling species distributions and habitat suitability in Google Earth Engine. This guide is intended to explain
 the details of the Earth Engine code developed for this manuscript.
 
 <figure><a href="https://onlinelibrary.wiley.com/doi/10.1111/ddi.13491" target="_blank"><img src="./Figures/26.png"/></a></figure>
 
-We first cover the basics for importing data and setting the main
-arguments used in different functions, such as, grid size and the area
-of interest. We then expand on different modelling workflows using three
-different case studies to demonstrate how to adapt the code workflow for
+We first cover the basics for importing data and setting the main arguments used in different functions, such as, grid size and the area
+of interest. We then expand on different modelling workflows using three different case studies to demonstrate how to adapt the code workflow for
 different goals.
 
-For information on how to set up a Google Earth Engine account as well
-as user guidelines and tutorials visit:
+For information on how to set up a Google Earth Engine account as well as user guidelines and tutorials visit:
 <https://developers.google.com/earth-engine/>
 
-The code found below can also be accessed through the GEE repository for
-this study:
+The code found below can also be accessed through the GEE repository for this study:
 <https://code.earthengine.google.com/?accept_repo=users/ramirocrego84/SDM_Manuscript>
 
-If you are new to GEE, I recommend you starting with the tutorial An Introduction to Google Earth Engine for Ecologists and Practitioners. 
+If you are new to GEE, we recommend you starting with the tutorial An Introduction to Google Earth Engine for Ecologists and Practitioners. 
 
-This a video tutorial explaining step by step the code forfitting species distribution models in GEE. 
+This a video tutorial explaining step by step the code for fitting species distribution models in GEE. 
 
 **Species Distribution Models in GEE**:
 {{< youtube 54PPKkblAks >}}
@@ -48,15 +43,11 @@ This a video tutorial explaining step by step the code forfitting species distri
 
 ### Importing species location data as an asset
 
-Datasets need to be uploaded as assets in Google Earth Engine. The
-easiest way to do this is by creating a csv file with spatial
-coordinates and any other desired attribute information. Note that you
-can also upload an ESRI Shapefile with the species location data.
+Datasets need to be uploaded as assets in Google Earth Engine. The easiest way to do this is by creating a csv file with spatial
+coordinates and any other desired attribute information. Note that you can also upload an ESRI Shapefile with the species location data.
 
-Below is an example for uploading the *Bradypus variegatus* data set
-from a `csv` file. Prepare a `csv` file with coordinates in latitude and
-longitude (EPSG:4326). To include a column with date use format
-Year-Month-Day (e.g., 2000-01-30).
+Below is an example for uploading the *Bradypus variegatus* data set from a `csv` file. Prepare a `csv` file with coordinates in latitude and
+longitude (EPSG:4326). To include a column with date use format Year-Month-Day (e.g., 2000-01-30).
 
 <figure>
 <img src="./Figures/Fig1.jpg"
@@ -70,24 +61,19 @@ columns containing coordinates in degrees.</figcaption>
 
 ### Loading and cleaning your species data
 
-To import the asset into your active script you can click on the forward
-arrow icon on your asset manager or you can use code to programmatically
-load the data as a new object. We recommend using code to import data.
-To import the asset with your species presence data, use the
+To import the asset into your active script you can click on the forward arrow icon on your asset manager or you can use code to programmatically
+load the data as a new object. We recommend using code to import data. To import the asset with your species presence data, use the
 `ee.FeatureCollection()` function and provide the asset ID. For example:
 
     var Data = ee.FeatureCollection('users/yourfolder/yourdata');
 
-One important step in modeling species distributions is to limit the
-potential effect of geographic sampling bias on the model output due to
+One important step in modeling species distributions is to limit the potential effect of geographic sampling bias on the model output due to
 data aggregation resulting from multiple nearby observations.
 
-We thin the location data to one randomly selected occurrence record per
-pixel at the chosen spatial resolution (the raster pixel or grain size
+We thin the location data to one randomly selected occurrence record per pixel at the chosen spatial resolution (the raster pixel or grain size
 of the analysis).
 
-Here, we will apply a function to remove all points that lay within the
-same raster cell at a given grain size. For this, we first need to
+Here, we will apply a function to remove all points that lay within the same raster cell at a given grain size. For this, we first need to
 define the spatial resolution of our study.
 
     // Define spatial resolution to work with (m)
