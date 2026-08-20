@@ -250,40 +250,40 @@ On the upper-right corner of your browser window you will find a **help** button
 
 ### The data catalog
 
-One of the most notable features of Google Earth Engine is the enormous amount of data available to be used. The database consists on about a petabyte-scale archive of publicly available remotely sensed imagery and other related data sets. It includes products from the most popular satellites such as Landsat, MODIS, National Oceanographic and Atmospheric Administration Advanced Very High Resolution Radiometer (NOAA AVHRR), Sentinel 1, 2, 3 and 5-P; and Advanced Land Observing Satellite (ALOS), and other data such as precipitation data, sea surface temperature data, CHIRPS climate data, topography data, and land cover data (Gorelick et al., 2017). This database increases daily as new satellite imagery is taken, processes and uploaded. New products are also being uploaded frequently. You can explore the data sets at the following [link](https://developers.google.com/earth-engine/datasets/).
+One of the most notable features of Google Earth Engine is the enormous amount of data available to be used. The database consists of a petabyte-scale archive of publicly available remotely sensed imagery and other related data sets. It includes products from the most commly used satellites such as Landsat, MODIS, National Oceanographic and Atmospheric Administration Advanced Very High Resolution Radiometer (NOAA AVHRR), Sentinel 1, 2, 3 and 5-P, Advanced Land Observing Satellite (ALOS), and other data such as precipitation data, sea surface temperature data, CHIRPS climate data, topography data, and land cover data (Gorelick et al., 2017). This database increases daily as new satellite imagery is collected, processed and uploaded. New products are increasingly made available to the user community. You can explore the data sets in the data catalogue: [link](https://developers.google.com/earth-engine/datasets/).
 
-In addition to GEE, there is an online community working collaborating further to distribute open source data. New products and datasets are constantly being uploaded and can be find in the following [link](https://samapriya.github.io/awesome-gee-community-datasets/projects/grip/). Also, a weekly list of new products updated to GEE can be found in the following [GitHub repository](https://github.com/samapriya/Earth-Engine-Datasets-List).
+In addition to GEE, there is an online community working collaborately to further distribute open source data. New products and datasets are constantly being uploaded and can be found at: [link](https://samapriya.github.io/awesome-gee-community-datasets/projects/grip/). A weekly list of new products updated to GEE can be found in the following [GitHub repository](https://github.com/samapriya/Earth-Engine-Datasets-List).
 
 ### A brief intro to JavaScript for Google Earth Engine
 
-Now that we have a better understanding of the GEE layout, it is time to start coding. The API of GEE uses JavaScript coding language. This is an object-oriented language with first-class functions, and is best known as the scripting language for Web pages, but it’s used in many non-browser environments as well. It is a prototype-based, multi-paradigm scripting language that is dynamic, and supports object-oriented, imperative, and functional programming styles.
+Now that we have a better understanding of the GEE layout, it is time to start coding. The API of GEE uses *JavaScript* coding language. This is an object-oriented language with first-class functions, and is best known as the scripting language for Web pages, but it’s used in many non-browser environments as well. It is a prototype-based, multi-paradigm scripting language that is dynamic, and supports object-oriented, imperative, and functional programming styles.
 
 In this first section we will learn the basics of JavaScript coding. There are certain code statements that are proper of GEE. We will later dive into those specifics.
 
-The code on this section can be found [here](https://code.earthengine.google.com/2d5cd3a88c5cf465313f272611056afb)
+The code for this section can be found [here](https://code.earthengine.google.com/2d5cd3a88c5cf465313f272611056afb)
 
 
 #### The basics
 
-The code editor panel on the interface is probably the one that you will use the most. If this is the first time you are facing a coding language to perform data analysis, the recommendation is to take it slow. As you get familiarized with the code structure and functions, things will get easier, we promise.
+The code editor panel on the interface is probably the one that you will use the most. If this is the first time you are using a coding language to perform data analysis, take it slow. As you get familiarized with the code structure and functions, things will get easier, we promise.
 
-Let’s start with a simple JavaScript statement. Go to the [code.earthengine.google.com](https://code.earthengine.google.com) and type into the code editor panel:
+To start with, we will create a simple JavaScript statement. Go to the [code.earthengine.google.com](https://code.earthengine.google.com) and type into the code editor panel:
 
 ```{js, eval=F}
 print('This is my first code');
 ```
 
-After, click **Run**. The text ‘This is my first code’ will appear on the **Console tab**. The parenthesis is used to pass arguments to functions. Here print is the function that prints the argument on the console.
+After, click **Run**. The text ‘This is my first code’ will appear on the **Console tab**. The parenthesis is used to pass arguments to functions. Here, **print** is the function that prints the argument on the console.
 
-In JavaScript, each statement ends in semicolon (But if you do not write it, the code will run anyway, but it may help you to keep your code organized). You will learn to write entire analysis that will be composed of multiple statements like that one.
+In JavaScript, each statement ends in a semicolon (But if you do not write it, the code will run anyway, but it may help you to keep your code organized). You will learn to write entire analysis that will be comprised of multiple statements.
 
-It is really important that you keep your code organized and knit. One way of doing this is by commenting your code statements. Add `//` before the text you want to add after the statement. For example:
+It is really important that you keep your code organized and neat. One way of doing this is by commenting your code statements. Add `//` before the text you want to add after the statement. For example:
 
 ```{js, eval=F}
 print('This is my first code'); //This is my first statement to print text
 ```
     
-JavaScript will read the first section of the statement, but will omit all the text that comes after the `//`. You can also comment out statements by placing `//` at the beginning of it. This will prevent the statement from running without having to delete it from the code.
+JavaScript will read the first section of the statement, but will omit all the text that comes after the `//`. You can also comment out statements by placing `//` at the beginning of the statement. This will prevent the statement from running without having to delete it from the code.
 
 ```{js, eval=F}
 //print('This is my first code');
@@ -291,14 +291,10 @@ JavaScript will read the first section of the statement, but will omit all the t
 
 ------------------------------------------------------------------------
 
-> A note of writing your script: As you continue working on your script,
-> you will add new lines of code. In Earth Engine, every time you click
-> **run** the entire code will be computed. If there is an error in some
-> line, the computation will end up there and an error message will be
-> prompted in the console pointing to the line number that has the error
-> that stopped the code from continuing processing. You will need to
-> debug and fix the error for the entire script to run successfully to
-> the end.
+> A note of writing your script: As you continue working on your script, you will add new lines of code. In Earth Engine, every time you click
+> **run** the entire code will be computed. If there is an error in some line, the computation will end up there and an error message will be
+> prompted in the console pointing to the line number that has the error that stopped the code from continuing processing. You will need to
+> debug and fix the error for the entire script to run successfully to the end.
 
 ------------------------------------------------------------------------
 
@@ -338,7 +334,7 @@ var list2 = ['a','b','c','d'];
 print(list2)
 ```
 
-We can also create arrays, that will add another dimension to the list. We use brackets to define each dimension. The first brackets define the columns of first dimension and the second brackets (inside the first ones) define the rows or second dimension.
+We can also create arrays, adding another dimension to the list. We use brackets to define each dimension. The first brackets define the columns of first dimension and the second brackets (inside the first ones) define the rows or second dimension.
 
 ```{js, eval=F}
 var myfirstarray = [[1,2],[3,4],['a','b']];
@@ -359,7 +355,7 @@ var myfirstdictionary = {
 print (myfirstdictionary);
 ```
 
-One important feature of dictionaries is that you can access the dictionary items suing square brackets or dot notation:
+One important feature of dictionaries is that you can access the dictionary items using square brackets or dot notation:
 
 ```{js, eval=F}
 print(myfirstdictionary['first']);
@@ -370,7 +366,7 @@ Dot notations are handy in JavaScript coding architecture. We will use it more f
 
 #### Functions
 
-Now that we have seen the different data types, we are going to start building and using functions. Functions allow to perform a myriad of operations. While, there are multiple functions that are already built within Earth Engine (Remember the **Code Editor Docs** tab to see all built-in functions), sometimes it is useful to create your owns.
+Now that we have seen the different data types, we are going to start building and using functions. Functions allow to perform a myriad of operations. While, there are multiple functions that are already built within Earth Engine (Remember the **Code Editor Docs** tab to see all built-in functions), sometimes it is useful to create your own.
 
 Moreover, understanding the basic components of a function will help you understand all the built-in ones. Functions need to be stored as variables as before. Functions are defined with the keyword `function` followed by parentheses within which you can define different parameters on which the function will operate. After the parentheses, follow the statements that make up the function and go inside curly brackets. The last statement is `return`, which indicates the output of the function.
 
@@ -396,9 +392,9 @@ print('Result of add2:',add2(4)); //Adds 2 to the number 4
 
 #### Engine objects
 
-So far, we have been using JavaScript code working with our computer processor, also known as the *client side*. However, we are going to be using Google computing infrastructure to run operations, rather than the processor of your own computer, or the *server side*. Thus, we need to create objects that can be sent in a form that is understood by Google servers. These are the **Earth Engine objects**. These are written in the form of `ee.thing` with thing being a data type, also known as containers. Maybe, you noticed that in the previous function, we specified `ee.Number` so that Google Server could compute the sum.
+So far, we have been using JavaScript code working with our computer processor, also known as the *client side*. However, we are going to be using Google computing infrastructure to run operations, rather than the processor of your own computer, or the *server side*. Thus, we need to create objects that can be sent in a format that is understood by Google servers. These are the **Earth Engine objects**, written in the format `ee.thing` with thing being a data type, also known as a container. Maybe you noticed that in the previous function, we specified `ee.Number` so that the Google Server could compute the sum.
 
-Now on, in order to created variables, we are going to assign those variables to the corresponding container, which depends on the data type, so that Google can recognize it and operate on it.
+From now on, in order to created variables, we are going to assign those variables to the corresponding container, which depends on the data type, so that Google can recognize it and operate on it.
 
 For strings, we have the `ee.String()` container
 
@@ -410,13 +406,13 @@ print('This is:', eeString);
 
 Now the print() function will send the container to Google server to be evaluated, and then is sent back to your computer, where the container is opened to be displayed.
 
-Similarly, for numbers we use `ee.Number()`, for lists `ee.List()` and so on. The `ee.Thing` are constructors that take arguments and parameters to be processed by Google servers and returns a container with a Earth Engine object that you can manipulate, export, print or plot in your code.
+Similarly, for numbers we use `ee.Number()`, for lists `ee.List()`, and so on. The `ee.Thing` are constructors that take arguments and parameters to be processed by Google servers and returns a container with a Earth Engine object that you can manipulate, export, print or plot in your code.
 
 Note that print, Map, Chart, and other function we will use are on the *client side*. They run on your computer, not on Google servers. We will see next how to operate Google objects on the *server side*.
 
 #### Working with Earth Engine objects
 
-Now we have seen how to create objects that Google servers can read and process. It is important to incorporate this concept because it will be critical for developing more complicated codes.
+Now we have seen how to create objects that Google servers can read and process. It is important to incorporate this concept because it will be critical for developing more complicated code.
 
 Once you have created an Earth Engine object, then JavaScript operations will not work, instead you have to use operations defined for those Earth Engine objects. Thus, while we are using JavaScript to code, we are now going to use a specific set of functions created to operate on Google Earth Engine. On the **Doc tab** on the top-left panel, you can find all the methods and functions available to work with Earth Engine objects.
 
@@ -432,7 +428,7 @@ But also you can use the built-in Earth Engine function sequence, to create the 
 var sequence = ee.List.sequence(1, 5);
 ```
 
-Now that the `ee.List` has been saved as a variable, you can use other Earth Engine functions to interact with this object. This will be the building block of many functions that we will be using along this tutorial. One important function is `get`, that gets something from the `ee.List` object. For example, you can get the second component of the list.
+Now that the `ee.List` has been saved as a variable, you can use other Earth Engine functions to interact with this object. This will be the building block of many functions that we will be using along this tutorial. One important function is `get`, that get's something from the `ee.List` object. For example, you can get the second component of the list.
 
 ```{js, eval=F}
 var value = sequence.get(2);
@@ -451,7 +447,7 @@ This process is known as casting.
 
 #### Earth Engine dictionaries
 
-Dictionaries can be really useful in Earth Engine. Similar to the JavaScript dictionary, we can create Engine containers for dictionaries using `ee.Dictionary` and specifying the different keys. Lets create a dictionary containing keys for a species information:
+Dictionaries can be really useful in Earth Engine. Similar to the JavaScript dictionary, we can create Engine containers for dictionaries using `ee.Dictionary` and specifying the different keys. Let's create a dictionary containing keys for a species information:
 
 ```{js, eval=F}
 // Create an Earth Engine dictionary
@@ -468,11 +464,11 @@ print('Species:', dictionary.get('Species'));
 print('Keys: ', dictionary.keys());
 ```
 
-Note that with the Earth Engine dictionary, now you cannot access the elements using JavaScript code as before. You need to use an Earth Engine function with Earth Engine objects. To extract a key you need to use the function get. Remember, as we explained before, the returning objects does not have an data type specified, and you will need to specify `ee.String` to use the object in another Earth Engine function. Finally, you can also use the function `keys` to extract all keys, and the resulting objects is going to be an `ee.List`.
+Note that with the Earth Engine dictionary, you cannot access the elements using JavaScript code as before. You need to use an Earth Engine function with Earth Engine objects. To extract a key you need to use the function get. Remember, as we explained before, the returning objects do not have an data type specified, and you will need to specify `ee.String` to use the object in another Earth Engine function. Finally, you can also use the function `keys` to extract all keys, and the resulting objects is going to be an `ee.List`.
 
 #### Passing arguments to functions by name
 
-Something that can be handy to remember before we move to more complicated operations and data manipulation in Google Earth Engine, is that you can pass argument to functions by name, using a similar structure to a dictionary. In this way, you can visualize the name of the different parameters, what can help understand the function. You can write the parameters in any order. For instance, the function `Map.setCenter()` centers the map view at a specific zoom level. It then takes tree arguments, lat, long and zoom. You can run the function as follow:
+Something that can be handy to remember before we move to more complicated operations and data manipulation in Google Earth Engine, is that you can pass an argument to functions by name, using a similar structure to a dictionary. In this way, you can visualize the name of the different parameters, which can help understand the function. You can write the parameters in any order. For instance, the function `Map.setCenter()` centers the map view at a specific zoom level. It then takes three arguments - lat, long, and zoom. You can run the function as follow:
 
 ```{js, eval=F}
 Map.setCenter(99.2, 12.6, 6);
@@ -492,7 +488,7 @@ Map.setCenter({lon:99.2, zoom:6; lat:12.6});
 
 #### Dates in Google Earth Engine
 
-Many times you will find yourself working with data and imageries from different times that you will need to filter. To manage time in Google Earth Engine, you need to use date Earth Engine objects using `ee.Date`. You can construct an `ee.Date` object using a string to specify the date:
+Many times you will find yourself working with data and imagery from different times that you will need to filter. To manage time in Google Earth Engine, you need to use date Earth Engine objects using `ee.Date`. You can construct an `ee.Date` object using a string to specify the date:
 
 ```{js, eval=F}
 // Define a date in Earth Engine.
@@ -512,17 +508,17 @@ Later in this tutorial, we will explore different functions to filter data sets 
 
 #### Final notes on operations
 
-We saw how to package objects created in the *client side* into containers to be used on the *server side*, the ee.Thing. Sometime, however, you may need to convert earth engine objects into client-side objects. In this case, you can open the container to access its information using `.getInfo()`. Another method is using the function `evaluate()`, which retrieves the values inside the earth engine objects. This is strictly not recommended by Google, so you need to use only when it is absolutely necessary. The difference with `.getInfo()` is that the later will stop the rest of the code from continuing processign until all information is retrieved from the Earth Engine object, whereas `evaluate()` will allow other porcesses to continue operating.
+We saw how to package objects created in the *client side* into containers to be used on the *server side* (i.e., the ee.Thing). Sometimes, however, you may need to convert Earth Engine objects into client-side objects. In this case, you can open the container to access its information using `.getInfo()`. Another method is using the function `evaluate()`, which retrieves the values inside the Earth Engine object. This mixing of client and server side objects is not recommended by Google and should only be used when absolutely necessary. The difference with `.getInfo()` is that the latter will stop the rest of the code from continuing to process until all information is retrieved from the Earth Engine object, whereas `evaluate()` will allow other processes to continue operating.
 
-Retrieving the information in the containers and mixing the client and server side is not recommended by Google, and you should only use it when absolutely necessary. It is always better to operate on the server side. Check the [Google user guide](https://developers.google.com/earth-engine/guides/client_server) to learn more about this.
+It is always better to operate on the server side. Check the [Google user guide](https://developers.google.com/earth-engine/guides/client_server) to learn more about this.
 
 #### Data structures in Google Earth Engine
 
-We have seen so far some important data structures in Earth Engine, *String*, *Number*, *Array*, *List*, *Dictionary* and *Date*. Those are fundamental blocks of Earth Engine code. However, in Google Earth Engine we will be working with geospatial data, thus, two other important geographic data structures are *Image* and *Feature*. These two data structures correspond to the raster and vector data types. Images are composed by a combination of bands and a dictionary with properties and features by a combination of a geometry and dictionaries with properties. If you are not familiar with raster and vector data, this is a good moment to refresh those concepts before you continue with the next section.
+We have seen so far some important data structures in Earth Engine, *String*, *Number*, *Array*, *List*, *Dictionary* and *Date*. Those are fundamental blocks of Earth Engine code. However, in Google Earth Engine we will be working with geospatial data. Thus, two other important geographic data structures are *Image* and *Feature*. These two data structures correspond to the raster and vector data types. Images are composed by a combination of bands and a dictionary with properties and features by a combination of a geometry and dictionaries with properties. If you are not familiar with raster and vector data, this is a good moment to refresh those concepts before you continue with the next section.
 
 ### Conclusion
 
-In this first section we have cover an overview of the Google Earth Engine platform. By now, you should have an account set and be familiarized with the web-based interface. We have also seen the basics of JavaScript coding language and how it works within Earth Engine. In the following section we will start using some data and learn how to work with it.
+In this first section, we covered an overview of the Google Earth Engine platform. By now, you should have an account and be familiarized with the web-based interface. We have also seen the basics of JavaScript coding language and how it works within Earth Engine. In the following section we will start using some data and learn how to work with it.
 
 For a more in depth description and tutorials to use GEE, remember to visit the [Google Earth Engine guide](https://developers.google.com/earth-engine/guides?hl=de) and
 [tutorials](https://developers.google.com/earth-engine/tutorials?hl=de).
@@ -558,7 +554,7 @@ Environment, 225, 127-147, <https://doi.org/10.1016/j.rse.2019.02.015>.
 
 In this introductory module we have covered the very basics of programming in Google Earth Engine. In the next module, we will start processing spatial data like images and features. This assignment is an opportunity to internalize some of the basic JavaScript functions that you will build on as you continue to grow your knowledge of GEE.
 
-Here are some exercises that will help you practice your coding skills. For the assignment, you need to create a single functional script with both code and responses to questions. You can add any answers to the questions into your script using comments //
+Here are some exercises that will help you practice your coding skills. For the assignment, you need to create a single functional script with both code and responses to questions. You can add any answers to the questions into your script using comments (i.e., `//`).
 
 1. In the code editor panel of the Google Earth Engine interface, use JavaScript code to create 3 different objects. You can give any name to these objects, but each object needs to be a different data type. Print your objects in the console by clicking the run button and make sure your code runs without errors.
 
@@ -586,7 +582,7 @@ var mydictionary = [
 print (mydictionary);
 ```
 
-3. Using the search tab on the Docs panel, find the function add for ee.Number objects. Using this function, add 5 to 5 and store the result as a new variable. Print this variable to the console.
+3. Using the search tab on the Docs panel, find the function add for ee.Number objects. Using this function, add `5` to `5` and store the result as a new variable. Print this variable to the console.
 
 4. It is important that you understand the difference between JavaScript objects and Earth Engine objects.  As an exercise, transform the following JavaScript objects into their equivalent Earth Engine object (the ee.Thing). 
 
