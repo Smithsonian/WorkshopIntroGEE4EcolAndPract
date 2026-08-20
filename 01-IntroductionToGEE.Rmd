@@ -1,38 +1,34 @@
 ## A brief introduction to Google Earth Engine
 
-Google Earth Engine (GEE) is an online Integrated Development Environment (IDE) for rapid development and visualization of complex spatial analyses using the JavaScript or Phyton coding languages, allowing users to conduct data heavy analysis. While computer coding can sound challenging for ecologists, researchers, students or managers that have never used code before, it is rather simple and opens the spectrum of data analysis enormously. The integrated platform that Google Earth Engine provides allows not only traditional remote sensing scientists, but also a much broader spectrum of users to run spatial analysis,mwithout the need to have deep expertise on the use of supercomputers.
+Google Earth Engine (GEE) is an online Integrated Development Environment (IDE) for rapid development and visualization of complex spatial analyses using the JavaScript or Python coding languages, allowing users to conduct computational intensive analyses. While computer coding can sound challenging, the learning curve is relatively small, opening a spectrum of opportunities for data analysis. The integrated platform that Google Earth Engine provides allows remote sensing scientists and other research scientists to run spatial analysis without the need to have deep expertise on the use of a supercomputer.
 
 The GEE platform has the main advantage of providing access to:
 
 1.  Petabytes of remote sensing imagery and other spatial products;
 
-2.  High-speed parallel processing and machine learning algorithms;
+2.  High-speed parallel processing and machine learning algorithms; and
 
-3.  A library of Application Programming Interfaces (APIs) with
-    development environments
+3.  A library of Application Programming Interfaces (APIs) with development environments.
 
-These three features enable the user to visualize and analyze a bast range of geospatial data fast and for free, without the need to access a supercomputers (Gorelick et al., 2017).
+These three features enable the user to visualize and analyze a vast range of geospatial data fast and for free (Gorelick et al., 2017).
 
-Google Earth Engine Application Programming Interface (API) can be run in popular coding languages, such as JavaScript and Phyton. In this tutorial we will focus on the use of JavaScript. In this first section we will explore the basics of Google Earth Engine, from understanding how to set up an account, to understand the interface to explaining the basics of JavaScript coding language.
+Google Earth Engine Application Programming Interface (API) can be run in popular coding languages, such as JavaScript and Python. In this tutorial we will focus on the use of JavaScript and in the first section we will explore the basics of Google Earth Engine, from understanding how to set up an account, to understand the interface, to explaining the basics of JavaScript coding language.
 
 ### Setting up a Google Earth Engine account:
 
-The first step to start using Google Earth Engine is to set up a Google Cloud project. In this [link](https://console.cloud.google.com/earth-engine/welcome?inv=1&invt=Ab42LQ) you will find the instructions. If you are working in research or for non-profit organizations, you can register a free or charge non-commercial project. 
+The first step to start using Google Earth Engine is to establish a Google Cloud project. At this [link](https://console.cloud.google.com/earth-engine/welcome?inv=1&invt=Ab42LQ), you will find the instructions on how to do so. If you are working in research or for non-profit organizations, you can register for a free account, with some restrictions. 
 
 ### The Google Earth Engine Interface
 
-Once your Google Earth Engine account is set, you will be able to access the Code Editor to start working on it in your browser at <https://code.earthengine.google.com/>.
+Once your Google Earth Engine account is established, you will be able to access the Code Editor to start working in your browser at <https://code.earthengine.google.com/>.
 
 The Google Earth Engine interface is an interactive web-based environment for data analysis. It has four main panels (Fig. 1):
 
-1.  The `Code Editor panel` to write JavaScript code.
+1.  The `Code Editor panel` to write JavaScript code;
 
-2.  The `Left panel` for managing and hosting programming scripts,
-    accessing Google Earth Engine documents and managing and uploading
-    external data sets such as shapefiles.
+2.  The `Left panel` for managing and hosting programming scripts, accessing Google Earth Engine documents and managing and uploading external data sets such as shapefiles;
 
-3.  The `Right panel` with tabs for printing, queering maps and
-    exporting products or long-running tasks.
+3.  The `Right panel` with tabs for printing, queering maps and exporting products or long-running tasks; and
 
 4.  The `Interactive map panel` for visualizing maps and outputs.
 
@@ -49,7 +45,7 @@ web-based environment that consists on four main panels.</figcaption>
 
 </center>
 
-Each main panel has a variety of elements that will explore more in detail (Fig. 2). Among this are:
+Each main panel has a variety of elements that we will explore more in detail (Fig. 2). Among these items:
 
 1.  The **Docs tab** or documentation tab
 
@@ -126,11 +122,11 @@ alt="Figure 4. The Docs tab." />
 
 </center>
 
-When clicking on any build in function, you will find a description of the function, the arguments that the function takes, and the what the function returns.
+When clicking on any build in function, you will find a description of the function, the arguments that the function takes, and what the function returns.
 
 ##### The Scripts tab – Script manager
 
-The **Scripts tab** is where private, shared and all script examples hosted by Google are stored. The **Owner level** stores all your private scripts, the ones that only you can see and edit. The **Writer level** stores scripts that has been shared (access granted) with you by another user. Sharing repositories and scripts can be really useful to work on collaborative projects. Once someone has added you to a repository, you can add new scripts, modify existing scripts, and manage access to the repository for other users. Of course, you can create and share repositories and scripts with other users. The **Reader level** contains scripts for which you have read access granted by the script owner, but you cannot edit the scripts. The **Example level** has script examples created and managed by Google, that are really good for some basic operations. Take a look at the scripts available in this folder. The **Archive level** is for scripts that users have access to read but have not been migrated by their owner from an older version of the Script Manager. The search tab allows you to search for scripts within all these levels.
+The **Scripts tab** is where private and shared script examples hosted by Google are stored. The **Owner level** stores all your private scripts - the ones that only you can see and edit. The **Writer level** stores scripts that has been shared (access granted) with you by another user. Sharing repositories and scripts can be really useful to work on collaborative projects. Once someone has added you to a repository, you can add new scripts, modify existing scripts, and manage access to the repository for other users. Of course, you can create and share repositories and scripts with other users. The **Reader level** contains scripts for which you have read access granted by the script owner, but you cannot edit the scripts. The **Example level** has script examples created and managed by Google, that are really good for some basic operations. Take a look at the scripts available in this folder. The **Archive level** is for scripts that users have access to read but have not been migrated by their owner from an older version of the Script Manager. The search tab allows you to search for scripts within all these levels.
 
 <center>
 
@@ -159,7 +155,7 @@ share with other users.</figcaption>
 
 ##### The Asset tab – Asset manager
 
-The **Asset tab** allows you to upload and manage your own image assets, shapefiles, and CSV files (Fig. 7). You can click on **NEW** to upload new assets from your personal computer. We will learn how to do this with later examples in the following sections. For now, it is good to get familiarized with the different parts of the interface.
+The **Asset tab** allows you to upload and manage your own image assets, shapefiles, and CSV files (Fig. 7). You can click on **NEW** to upload new assets from your personal computer. We will learn how to do this in later examples in the following sections. For now, it is good to get familiarized with the different parts of the interface.
 
 <center>
 
@@ -173,7 +169,7 @@ alt="Figure 7. The Asset tab." />
 
 #### Search bar tool
 
-The **search bar** located in the top of the Code Editor that says ‘Search places and data sets…’ allows you to search the GEE data archive. Here you can type different keywords of data products, sensors or places, to filter the data base. If you search for a place, clicking on the place will make it visible in the map. If you search for a data product, such as Landsat, you will see a detailed description of each one. Click **Import** to add the data product into your script as an import (Fig. 8), which will appear at the top of the script. It is also possible to import data products using code, so you do not have to search and click the **Import** button if you want to reuse the script for another work. Additionally, you can see the JavaScript code to import any product by clicking on the copy button next to the code and pasting it into your script. You can delete imports you have added to your script by positioning your pointer next to the import and clicking the delete icon.
+The **search bar** located at the top of the Code Editor that says ‘Search places and data sets…’ allows you to search the GEE data archive. Here you can type different keywords of data products, sensors or places, to filter the data base. If you search for a place, clicking on the place will make it visible in the map. If you search for a data product, such as Landsat, you will see a detailed description of each one. Click **Import** to add the data product into your script as an import (Fig. 8), which will appear at the top of the script. It is also possible to import data products using code, so you do not have to search and click the **Import** button if you want to reuse the script for another work. Additionally, you can see the JavaScript code to import any product by clicking on the copy button next to the code and pasting it into your script. You can delete imports you have added to your script by positioning your pointer next to the import and clicking the delete icon.
 
 <center>
 
@@ -205,7 +201,7 @@ tabs.</figcaption>
 
 ##### Console tab
 
-The **console tab** is located next to the **inspector tab** (Fig. 9). This tab is where all the information you print on the code will be displayed. We will see later how to print information when using JavaScript. For now, it is enough to remember that this is the tab in which you will interact with the data and where you can display information and results from operations. Those can be text, objects or charts. This console tab is interactive, meaning that you can expand printed objects to get more details about them. We will start to use this tab in the next section when you start writing your first JavaScript code.
+The **console tab** is located next to the **inspector tab** (Fig. 9). This tab is where all the information you print on the code will be displayed. We will see later how to print information when using JavaScript. For now, it is enough to remember that this is the tab in which you will interact with the data and where you can display information and results from operations. Those can be text, objects, or charts. This console tab is interactive, meaning that you can expand printed objects to get more details about them. We will start to use this tab in the next section when you start writing your first JavaScript code.
 
 ##### Tasks tab
 
@@ -216,7 +212,7 @@ The **tasks tab** is located next to the console tab. This tab will display long
 
 ##### Layer manager
 
-At the top-right corner of the interactive map panel is the **layer manager** that allows you to adjust the display of all layers you added to the map. From here you can activate and deactivate layers display and adjust its transparency with the slider. By clicking the setting icon, you can adjust the visualization parameters of each individual layer (Fig. 10). From here you can customize the stretch of pixel value display, adjust opacity (transparency), adjust gamma display and change the color palette. You can manually choose different colors. Click Apply button to apply the new visualization parameters to the current display. You can also use the Import button to load the new visualization parameters object as a new variable in the imports section of your script that you can use to display other layers on the interactive map.
+At the top-right corner of the interactive map panel is the **layer manager** that allows you to adjust the display of all layers you added to the map. From here you can activate and deactivate layers displayed and adjust their transparency with the slider. By clicking the setting icon, you can adjust the visualization parameters of each individual layer (Fig. 10). From here you can customize the stretch of pixel value display, adjust opacity (transparency), adjust gamma display and change the color palette. You can manually choose different colors. Click the **Apply** button to apply the new visualization parameters to the current display. You can also use the Import button to load the new visualization parameters object as a new variable in the imports section of your script that you can use to display other layers on the interactive map.
 
 <center>
 
@@ -235,7 +231,7 @@ At the right of the **layer manager** are buttons to choose different map backgr
 
 In addition to images, you can import geometries (i.e., vector data in Earth Engine language) to your script by drawing them on the map. To create a geometry, use the **geometry drawing tools** in the upper-left corner of the interactive map panel. There are four different geometries you can create: points, lines, polygons, and rectangles. When using the drawing tool, any geometry created will automatically create a new geometry layer in the import section of your script. Place the pointer on the **Geometry Imports** button and then click the **+new layer** link. Then choose the type of geometry you want to draw and start clicking on the map to draw your geometries. In the case of polylines and polygons, double click to finalize the drawing. Geometry display on the map can be activated and deactivated from the **Geometry Imports** section. We will learn more about geometries in the second section of this tutorial. You can delete geometries by activating them using the hand tool, and pressing **Delete** on your keyboard or by directly clicking the **delete button** on the **Imports section** of the script.
 
-You can configure the way geometries are imported into the script by using the setting button that appears when positioning the pointer on top of the geometry on the **Geometry Imports** section. After clicking settings, a dialog box will be displayed (Fig. 11). Note that geometries can be imported as geometries, feature or feature collections and you can choose on the button that appears on the box. We will learn more about this in the next section. You can also modify the name and the color of the layer. Finally, you can click the lock button to lock and unlock the geometry, what can be useful to prevent edits or deletions by accident.
+You can configure the way geometries are imported into the script by using the settings button that appears when positioning the pointer on top of the geometry on the **Geometry Imports** section. After clicking settings, a dialog box will be displayed (Fig. 11). Note that geometries can be imported as geometries, feature or feature collections and you can choose on the button that appears on the box. We will learn more about this in the next section. You can also modify the name and the color of the layer. Finally, you can click the lock button to lock and unlock the geometry, which can be useful to prevent edits or deletions by accident.
 
 <center>
 
@@ -250,7 +246,7 @@ geometries.</figcaption>
 
 #### The help button
 
-On the upper-right corner of your browser window you will find a help button. When clicking it, you will find links to the developer user guide with more detail information about all we just covered ([link](https://developers.google.com/earth-engine/guides/getstarted), and also links to forums where users post questions and help each other. These forums are of great help and you can post your own questions. Before posting questions make sure to do a good search as there is a good chance that someone else encounter a similar problem before and the answer to your problem is already there.
+On the upper-right corner of your browser window you will find a **help** button. When clicking it, you will find links to the developer user guide with more detail information about all we just covered ([link](https://developers.google.com/earth-engine/guides/getstarted), and also links to forums where users post questions and help each other. These forums are of great help and you can post your own questions. Before posting questions make sure to do a good search as there is a good chance that someone else encountered a similar problem before and the answer to your problem is already there.
 
 ### The data catalog
 
