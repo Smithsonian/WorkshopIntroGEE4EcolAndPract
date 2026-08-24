@@ -676,7 +676,7 @@ Here are some activities that will help you practice the skills we covered. This
 
 5. [Advanced] Write a function to calculate a Modified Soil Adjusted Vegetation Index band (MSAVI). [https://www.usgs.gov/landsat-missions/landsat-modified-soil-adjusted-vegetation-index](https://www.usgs.gov/landsat-missions/landsat-modified-soil-adjusted-vegetation-index). Map this function across a Landsat 8 collection to add an MSAVI band to each image. Create a median pixel composite and add this layer to your map window.
 
-Solutions code by clicking [here](https://code.earthengine.google.com/c550161bdb8fa961412d79d715462b32)
+Solutions code by clicking [here](https://code.earthengine.google.com/5783507267423309bc0c89bf59d36435)
 
 
 ---

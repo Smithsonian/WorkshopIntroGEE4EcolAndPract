@@ -1498,10 +1498,12 @@ The idea of this assignment is that you can practice modifying the general workf
 
 Activity 1  [Moderate]
 Modify the general workflow presented in the video to fit an SDM using presence only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/Perissodactyla`
-Note that this includes other species, so you need to filter the data to retain only the Plains zebra data.
+Note that this includes other species, so you need to filter the data to retain only the Plains zebra data. Note you may also need to do some extra filters for data cleaning. 
 
 The model needs to include the following:
 - Grain size: 10000 m
+
+- Study area: decide whether you want to use the default settings or define your own.
 
 - Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/061/MOD13A2) and human modification index (CSP/HM/GlobalHumanModification)
 
@@ -1513,6 +1515,8 @@ The model needs to include the following:
 
 - Iterations: 3
 
+Solutions code by clicking [here](https://code.earthengine.google.com/5fb63d2728e910270784f30314295dd0)
+
 Activity 2 [Advanced]
 
 Modify the previous model to:
@@ -1520,9 +1524,12 @@ Modify the previous model to:
 
 - Define area to create pseudo-absences using option 3 (clusters).
 
-- Define a 500 m grain size
+- Define a 1000m grain size
 
-Solutions code by clicking [here](https://code.earthengine.google.com/c550161bdb8fa961412d79d715462b32)
+- Adjust the block sizes for cross validation
 
+Solutions code by clicking [here](https://code.earthengine.google.com/9525b774728fdc3344236652d27714eb)
+
+Discussion: Are the predictor variables appropriate? What should be changed?
 
 ---
