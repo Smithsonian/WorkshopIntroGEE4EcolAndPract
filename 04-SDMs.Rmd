@@ -1,73 +1,48 @@
 ## Species Distribution Models in Google Earth Engine
 
-This is a guide for modeling species distributions and habitat suitability in Google Earth Engine. This guide is intended to explain the details of the Earth Engine code developed for this manuscript.
+This is a guide for modeling species distributions and habitat suitability in [Google Earth Engine](https://earthengine.google.com/). This guide is intended to explain the details of the Earth Engine code developed for the following manuscript.
 
 <figure><a href="https://onlinelibrary.wiley.com/doi/10.1111/ddi.13491" target="_blank"><img src="./Figures/26.png"/></a></figure>
 
-We first cover the basics of using matchine learning to create a simple species distribution model. 
-We then cover more specifics of the SDM workflow for importing data and setting the main
-arguments used in different functions, such as, grid size and the area
-of interest. We then expand on different modelling workflows using three
-different case studies to demonstrate how to adapt the code workflow for
-different goals.
+We first cover the basics of using matchine learning to create a simple species distribution model. We then cover more specifics of the SDM workflow for importing data and setting the main arguments used in different functions, such as, grid size and the area of interest. We then expand on different modelling workflows using three different case studies to demonstrate how to adapt the code workflow for different goals.
 
-The code found below can also be accessed through the GEE repository for
+The code found below can also be accessed through the [GEE](https://earthengine.google.com/) repository for
 this study:
 <https://code.earthengine.google.com/?accept_repo=users/ramirocrego84/SDM_Manuscript>
 
 ### Importing species location data as an asset
 
-Datasets need to be uploaded as assets in Google Earth Engine. The
-easiest way to do this is by creating a csv file with spatial
-coordinates and any other desired attribute information. Note that you
-can also upload an ESRI Shapefile with the species location data.
+Datasets need to be uploaded as assets in [Google Earth Engine](https://earthengine.google.com/). The easiest way to do this is by creating a csv file with spatial coordinates and any other desired attribute information. Note that you can also upload an ESRI Shapefile with the species location data.
 
-Below is an example for uploading the *Bradypus variegatus* data set
-from a `csv` file. Prepare a `csv` file with coordinates in latitude and
-longitude (EPSG:4326). To include a column with date use format
+Below is an example for uploading the *Bradypus variegatus* data set from a `csv` file. Prepare a `csv` file with coordinates in latitude and longitude (EPSG:4326). To include a column with date use format
 Year-Month-Day (e.g., 2000-01-30).
 
 <figure>
 <img src="./Figures/Fig1.jpg"
 alt="Figure 1. Steps for uploading assets to Google Earth Engine. 1) Click ‘New’ under the Assets tab and then select ‘CSV file (.csv)’. 2) Click ‘SELECT’. 3) Browse and select the file from your computer. 4) Provide a name for the asset and the names of the columns containing coordinates in degrees." />
-<figcaption aria-hidden="true">Figure 1. Steps for uploading assets to
-Google Earth Engine. 1) Click ‘New’ under the Assets tab and then select
-‘CSV file (.csv)’. 2) Click ‘SELECT’. 3) Browse and select the file from
-your computer. 4) Provide a name for the asset and the names of the
-columns containing coordinates in degrees.</figcaption>
+<figcaption aria-hidden="true">Figure 1. Steps for uploading assets to Google Earth Engine. 1) Click ‘New’ under the Assets tab and then select ‘CSV file (.csv)’. 2) Click ‘SELECT’. 3) Browse and select the file from your computer. 4) Provide a name for the asset and the names of the columns containing coordinates in degrees.</figcaption>
 </figure>
 
 ### Loading and cleaning your species data
 
-To import the asset into your active script you can click on the forward
-arrow icon on your asset manager or you can use code to programmatically
-load the data as a new object. We recommend using code to import data.
-To import the asset with your species presence data, use the
-`ee.FeatureCollection()` function and provide the asset ID. For example:
+To import the asset into your active script you can click on the forward arrow icon on your asset manager or you can use code to programmatically load the data as a new object. We recommend using code to import data. To import the asset with your species presence data, use the `ee.FeatureCollection()` function and provide the asset ID. For example:
 
 ```{js, eval=F}
 var Data = ee.FeatureCollection('users/yourfolder/yourdata');
 ```
 
-One important step in modeling species distributions is to limit the
-potential effect of geographic sampling bias on the model output due to
-data aggregation resulting from multiple nearby observations.
+One important step in modeling species distributions is to limit the potential effect of geographic sampling bias on the model output due to data aggregation resulting from multiple nearby observations.
 
-We thin the location data to one randomly selected occurrence record per
-pixel at the chosen spatial resolution (the raster pixel or grain size
-of the analysis).
+We thin the location data to one randomly selected occurrence record per pixel at the chosen spatial resolution (the raster pixel or grain size of the analysis).
 
-Here, we will apply a function to remove all points that lay within the
-same raster cell at a given grain size. For this, we first need to
-define the spatial resolution of our study.
+Here, we will apply a function to remove all points that lay within the same raster cell at a given grain size. For this, we first need to define the spatial resolution of our study.
 
 ```{js, eval=F}
 // Define spatial resolution to work with (m)
 var GrainSize = 10000; // e.g. 10 km
 ```
 
-Then, we can define a function to remove duplicates and apply it to the
-species data set.
+Then, we can define a function to remove duplicates and apply it to the species data set.
 
 ```{js, eval=F}
 function RemoveDuplicates(data){
@@ -78,19 +53,15 @@ function RemoveDuplicates(data){
 var Data = RemoveDuplicates(Data);
 ```
 
-The following figure exemplifies how points are rarefied at a 1 km grain
-size.
+The following figure exemplifies how points are rarefied at a 1 km grain size.
 
 <figure>
 <img src="./Figures/Fig2.png"
 alt="Figure 2. Example of presence point filtering. A) Original dataset; B) Final dataset with only one presence point retained per pixel." />
-<figcaption aria-hidden="true">Figure 2. Example of presence point
-filtering. A) Original dataset; B) Final dataset with only one presence
-point retained per pixel.</figcaption>
+<figcaption aria-hidden="true">Figure 2. Example of presence point filtering. A) Original dataset; B) Final dataset with only one presence point retained per pixel.</figcaption>
 </figure>
 
-You can evaluate the number of points before and after removing
-duplicates.
+You can evaluate the number of points before and after removing duplicates.
 
 ```{js, eval=F}
 print(ee.FeatureCollection('users/yourfolder/yourimage').size())
@@ -99,19 +70,11 @@ print(Data.size())
 
 ### Define your area of interest for modeling
 
-The extent of the analysis should be carefully selected and constrained
-to a realistic realm of the species of study, avoiding unrealistic
-extents that can hamper model accuracy and predictions (Guisan et al.,
-2017; Leroy et al., 2018; Sillero et al., 2021).
+The extent of the analysis should be carefully selected and constrained to a realistic realm of the species of study, avoiding unrealistic extents that can hamper model accuracy and predictions (Guisan et al., 2017; Leroy et al., 2018; Sillero et al., 2021).
 
-There are different ways you can define your area of interest. You can
-directly draw a polygon using the drawing tools in GEE or manually set
-the polygon (e.g., Case Study 2 in this tutorial). Here, we present two
-methods for automating this process.
+There are different ways you can define your area of interest. You can directly draw a polygon using the drawing tools in [GEE](https://earthengine.google.com/) or manually set the polygon (e.g., Case Study 2 in this tutorial). Here, we present two methods for automating this process.
 
-If you are interested in working with a specific country or continent,
-you can use the Large Scale International Boundary Polygons data set
-available in GEE catalog.
+If you are interested in working with a specific country or continent, you can use the Large Scale International Boundary Polygons data set available in the [GEE](https://earthengine.google.com/) catalog.
 
 Here an example to select Kenya:
 
@@ -120,28 +83,23 @@ Here an example to select Kenya:
 var AOI = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('country_co', 'KE'));
 ```
 
-You can see the list of country codes at:
-<https://en.wikipedia.org/wiki/List_of_FIPS_country_codes>
+You can see the list of country codes at: <https://en.wikipedia.org/wiki/List_of_FIPS_country_codes>
 
-If you are interested in working within the entire African continent,
-you can use:
+If you are interested in working within the entire African continent, you'll need to reference the 'wld_rgn' column:
 
 ```{js, eval=F}
 // Load country boundary from data catalog if working at a country scale
 var AOI = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('wld_rgn', 'Africa'));
 ```
 
-Another option is to select a bounding box around your species location
-data. For example, we can define a bounding box using the function
-`bounds()` and add a buffer of 50 km.
+Another option is to select a bounding box around your species location data. For example, we can define a bounding box using the function `bounds()` and add a buffer of 50 km.
 
 ```{js, eval=F}
 // Define the area of interest
 var AOI = Data.geometry().bounds().buffer(50000);
 ```
 
-To display the study area on the map use the following code and assign
-the map layer the name ‘AOI’:
+To display the study area on the map use the following code and assign the map layer the name ‘AOI’:
 
 ```{js, eval=F}
 // Add AOI to the map
@@ -150,33 +108,16 @@ Map.addLayer(AOI, {}, 'AOI', 1); // The number 1 indicates the zoom level. Highe
 
 ### Selecting predictor variables
 
-One of the main advantages of implementing SDMs in Google Earth Engine
-is to make use of the large number of datasets available as predictor
-variables. This includes not only the bioclimatic variables from Hijmans
-et al. (2005), but elevation data and derivatives (slope, aspect,
-hillside, etc.), diverse vegetation indices, human modification indices,
-nighttime light images, water bodies, hourly climatic data, land cover
-classifications, roads or other infrastructure and even the raw pixel
-values of satellite data. Depending on your area of interest, certain
-regions have greater data availability. GEE also offers the opportunity
-to directly include user-derived datasets in your analysis, such as
-processed satellite imagery (e.g., a land cover classification that you
-previously developed for your area of interest).
+One of the main advantages of implementing SDMs in [Google Earth Engine](https://earthengine.google.com/) is to make use of the large number of datasets available as predictor variables. This includes not only the bioclimatic variables from Hijmans et al. (2005), but elevation data and derivatives (slope, aspect, hillside, etc.), diverse vegetation indices, human modification indices, nighttime light images, water bodies, hourly climatic data, land cover classifications, roads or other infrastructure and even the raw pixel values of satellite data. Depending on your area of interest, certain regions have greater data availability. [GEE](https://earthengine.google.com/) also offers the opportunity to directly include user-derived datasets in your analysis, such as processed satellite imagery (e.g., a land cover classification that you previously developed for your area of interest).
 
-Selecting predictor variables is a step in which the researcher needs to
-rely on existing knowledge of the study species, such as the variables
-that may affect its distribution, etc.
+Selecting predictor variables is a step in which the researcher needs to rely on existing knowledge of the study species, such as the variables that may affect its distribution, etc.
 
-To find spatial data sets, you can use the search bar. All information
-related to each spatial dataset is available by clicking on the name of
-the product. The code necessary to import the dataset is available as
-shown in the following figure.
+To find spatial data sets, you can use the search bar. All information related to each spatial dataset is available by clicking on the name of the product. The code necessary to import the dataset is available as shown in the following figure.
 
 <figure>
 <img src="./Figures/Fig3.JPG"
 alt="Figure 3. SRTM Digital Elevation Data description with code to import the dataset" />
-<figcaption aria-hidden="true">Figure 3. SRTM Digital Elevation Data
-description with code to import the dataset</figcaption>
+<figcaption aria-hidden="true">Figure 3. SRTM Digital Elevation Data description with code to import the dataset</figcaption>
 </figure>
 
 ```{js, eval=F}
@@ -184,27 +125,15 @@ description with code to import the dataset</figcaption>
 var Elev = ee.Image("USGS/SRTMGL1_003");
 ```
 
-Note that the GEE function `ee.Algorithms.Terrain()` allows you to
-calculate slope, aspect, and hillshade from the elevation dataset.
+Note that the [GEE](https://earthengine.google.com/) function `ee.Algorithms.Terrain()` allows you to calculate slope, aspect, and hillshade from the elevation dataset.
 
-We will demonstrate different ways to import and manipulate spatial data
-sets with the specific examples below.
+We will demonstrate different ways to import and manipulate spatial data sets with the specific examples below.
 
 ### Defining an area to create pseudo-absences
 
-When using presence only data, the most common methodology when using
-data from online databases such as, GBIF, it is important to define the
-area to create pseudo-absences. Choosing the proper method is a critical
-step as it can affect model performance (Barbet-Massin, Jiguet, Albert,
-& Thuiller, 2012). Here we show how to implement three different
-methodologies. In all three, we first create a mask of the location of
-the presence data to avoid randomly generating pseudo-absences at the
-same pixels as presences.
+When using presence only data, the most common methodology when using data from online databases such as, GBIF, it is important to define the area to create pseudo-absences. Choosing the proper method is a critical step as it can affect model performance (Barbet-Massin, Jiguet, Albert, & Thuiller, 2012). Here we show how to implement three different methodologies. In all three, we first create a mask of the location of the presence data to avoid randomly generating pseudo-absences at the same pixels as presences.
 
--   Note: The mask to remove presence point locations from the area to
-    create pseudo-absences has a code problem that is now fixed. Also
-    see Study Case 1 on how to mask out water if your area of interest
-    includes areas over water.
+-   Note: The mask to remove presence point locations from the area to create pseudo-absences has a code problem that is now fixed. Also see Study Case 1 on how to mask out water if your area of interest includes areas over water.
 
 1.  Generate random pseudo-absences across the entire study area.
 
@@ -220,18 +149,7 @@ var mask = Data
 var AreaForPA = mask.clip(AOI);
 ```
 
-2.  Generate pseudo-absences within a specified distance from presence
-    locations to limit pseudo-absences to areas potentially accessible
-    to the species (Araújo et al., 2019) and to account for the
-    potential geographical or environmental sampling bias of presence
-    records by creating pseudo-absences with a similar sampling bias
-    (Phillips et al., 2009). The `buffer()` function determines the area
-    available for generating pseudo-absences, assuming that these areas
-    have the same sampling bias than the records and represent areas
-    where animals can disperse. The `buffer()` function has two
-    arguments, the distance in meters for the buffer and the maximum
-    amount of error tolerated when approximating the buffer circle.
-    Larger maximum errors improve computing efficiency.
+2.  Generate pseudo-absences within a specified distance from presence locations to limit pseudo-absences to areas potentially accessible to the species (Araújo et al., 2019) and to account for the potential geographical or environmental sampling bias of presence records by creating pseudo-absences with a similar sampling bias (Phillips et al., 2009). The `buffer()` function determines the area available for generating pseudo-absences, assuming that these areas have the same sampling bias than the records and represent areas where animals can disperse. The `buffer()` function has two arguments, the distance in meters for the buffer and the maximum amount of error tolerated when approximating the buffer circle. Larger maximum errors improve computing efficiency.
 
 ```{js, eval=F}
     // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
@@ -249,26 +167,9 @@ var AreaForPA = mask.clip(AOI);
     right.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
 ```
 
-3.  Limit the area to select pseudo-absences by implementing an
-    environmental profiling technique, masking out the known
-    environmentally suitable locations, similar to other two-steps
-    methods for generating pseudo-absences (Chefaoui & Lobo, 2008;
-    Senay, Worner, & Ikeda, 2013).
+3.  Limit the area to select pseudo-absences by implementing an environmental profiling technique, masking out the known environmentally suitable locations, similar to other two-steps methods for generating pseudo-absences (Chefaoui & Lobo, 2008; Senay, Worner, & Ikeda, 2013).
 
-This method requires fitting a clustering function to the occurrence
-data. When you have a large presence dataset, you can randomly choose a
-subset of the data with this line of code:
-`Data.randomColumn().sort('random').limit(200)` where the number in
-`limit()` specifies the number of random presence points used to train
-the clustering algorithm. A critical step is to display the cluster
-results and identify the correct cluster, zero or one, to use for
-creation of pseudo-absences. The cluster ID is assigned in an
-inconsistent manner and can change even when changing the order of the
-same data input. We wrote a line of code to automatically identify the
-cluster ID to define the area to create pseudo-absences. But it is
-important to display the cluster results and confirm that the clustering
-worked properly and that the correct cluster ID was identified before
-creating the mask: `var mask2 = Clresult.select(['cluster']).eq(clustID)`.
+This method requires fitting a clustering function to the occurrence data. When you have a large presence dataset, you can randomly choose a subset of the data with this line of code: `Data.randomColumn().sort('random').limit(200)` where the number in `limit()` specifies the number of random presence points used to train the clustering algorithm. A critical step is to display the cluster results and identify the correct cluster, zero or one, to use for creation of pseudo-absences. The cluster ID is assigned in an inconsistent manner and can change even when changing the order of the same data input. We wrote a line of code to automatically identify the cluster ID to define the area to create pseudo-absences. But it is important to display the cluster results and confirm that the clustering worked properly and that the correct cluster ID was identified before creating the mask: `var mask2 = Clresult.select(['cluster']).eq(clustID)`.
 
 ```{js, eval=F}
 // Make an image out of the presence locations. The pixels where we have presence locations will be removed from the area to generate pseudo-absences.
@@ -304,7 +205,7 @@ Map.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
 
 ### Case Study 1: A simple example to understand how matchine learning works
 
-Let's start running a very simple SDM using Random Forest algorithm. To do this, we will use a dataset on Plains zebra (**Equus quagga**) observations I downloaded from GBIF. 
+Let's start running a very simple SDM using a Random Forest algorithm. To do this, we will use a dataset on Plains zebra (**Equus quagga**) observations downloaded from [GBIF](https://www.gbif.org/). 
 
 First, we will define a polygon around the African continent that will serve as the area of interest (AOI). You can use the drawing tools to do this. It does not have to be accurate for this simple example.
 
@@ -313,7 +214,7 @@ First, we will define a polygon around the African continent that will serve as 
 var AOI = geometry
 ```
 
-Now we can load the 1593 zebra observations across Africa. We will not worry about data quality for now as we just want to demonstrate how SDMs work.
+Now we can load the 1593 zebra observations across Africa. We will not worry about data quality for now as we just want to demonstrate how SDMs work. You should, however, consider data quality when conducting an analysis in practice.
 
 ```{js, eval=F}
 // Load Zebra data
@@ -321,7 +222,7 @@ var Data = ee.FeatureCollection('projects/ee-ramirocrego84/assets/PlainZebra')
 print(Data.size())
 ```
 
-Next, we need to define a gran size to work with, the spatial resolution of the analysis. We will use a coarse resolution to work at the continental level of 10 x 10 km (10000 x 10000 m)
+Next, we need to define a grain size to work with, the spatial resolution of the analysis. We will use a coarse resolution to work at the continental level of 10 x 10 km (10000 x 10000 m). Grain size impacts the speed of processing (smaller grain sizes require more compute resources) and the detail of the result (larger grain sizes will provide less detail).
 
 ```{js, eval=F}
 // Define spatial resolution to work with (m)
@@ -329,7 +230,7 @@ var GrainSize = 10000;
 
 ```
 
-Next, we will load a set of predictor variables. We will use an elevation model and the 19 bioclimatic variables available on GEE. We can display annual mean temperature as an example.
+Next, we will load a set of predictor variables. We will use an elevation model and the 19 bioclimatic variables available on [GEE](https://earthengine.google.com/). We will display annual mean temperature as an example.
 
 ```{js, eval=F}
 // Load elevation data from the data catalog and clip it to the country boundary
@@ -344,7 +245,7 @@ print(predictors)
 Map.addLayer(predictors,{bands: ['bio01'], min:0, max:300, palette: ['yellow','green']}, 'Temp');
 ```
 
-So far we have the presence data and the predictor variables. To fit a model we also need pseudo-absences, so points that provide information on areas where we do not have zebra locations. This can be a complex and crucial step and we will discuss more in the next example, but for now, we will just create random points across the entire continent. Note, we need to add a property to the data indicating which ones are presence with a 1 and which ones are pseudo-absences with a 0.
+So far we have the presence data and the predictor variables. To fit a model we also need pseudo-absences - points that provide information on areas where we do not have zebra locations. This can be a complex and crucial step and we will discuss more in the next example. For now, we will just create random points across the entire continent. Note, we need to add a condition (i.e., a flag) to the data indicating which ones are presence with a 1 and which ones are pseudo-absences with a 0.
 
 ```{js, eval=F}
 // Presence
@@ -389,7 +290,7 @@ Map.addLayer(rfClassified, {
 }, 'Habitat Suitability');
 ```
 
-Despite the simplicity of this model, we can see that the predicted distribution is not too far off from the actual distribution of Planis zebras.
+Despite the simplicity of this model, we can see that the predicted distribution is not too far off from the actual distribution of Plains zebras.
 
 <figure>
 <img src="./Figures/Fig4.png"
@@ -402,26 +303,13 @@ alt="Figure 4. Estimated distribution of Plains zebra vs known distribution." />
 
 ### Case Study 2: Modeling *Bradypus variegatus* habitat suitability and predicted distribution using presence-only data
 
-To demonstrate the basic code to conduct SDMs in Google Earth Engine, we
-will use *Bradypus variegatus* as a case study. This species has been
-widely used to present other SDM software and R packages (Hijmans et
-al., 2017; Kindt, 2018; Phillips et al., 2017, 2006) and allows us to
-compare GEE outputs with other tools. We obtained occurrence data from
-GBIF (GBIF.org 20 January 2021 GBIF Occurrence Download
-<https://doi.org/10.15468/dl.jxcv7e>). We filtered data to the period
-from 2000 to 2020, retaining only georeferenced records with a
-coordinate uncertainty &lt; 250 m. We further cleaned the data set by
-removing all locations that fall on top of buildings or water bodies
-assuming they had incorrect coordinates.
+To demonstrate the basic code to conduct SDMs in [Google Earth Engine](https://earthengine.google.com/), we will use *Bradypus variegatus* as a case study. This species has been widely used to present other SDM software and [R](https://cran.r-project.org/) packages (Hijmans et al., 2017; Kindt, 2018; Phillips et al., 2017, 2006) and allows us to compare [GEE](https://earthengine.google.com/) outputs with other tools. We obtained occurrence data from GBIF (GBIF.org 20 January 2021 GBIF Occurrence Download <https://doi.org/10.15468/dl.jxcv7e>). We filtered data to the period from 2000 to 2020, retaining only georeferenced records with a coordinate uncertainty &lt; 250 m. We further cleaned the data set by removing all locations that fall on top of buildings or water bodies assuming they had incorrect coordinates.
 
 ### Loading species location data
 
-We upload the presence data set, specify the spatial scale to work with
-and randomly select one occurrence location per 1km grid cell.
+We upload the presence data set, specify the spatial scale to work with and randomly select one occurrence location per 1km grid cell.
 
-Note that the following code modifies the `ui.root` to display two maps
-on the map panel of the user interface, one for the habitat suitability
-map and one for the potential distribution map.
+Note that the following code modifies the `ui.root` to display two maps on the map panel of the user interface, one for the habitat suitability map and one for the potential distribution map.
 
 ```{js, eval=F}
 ///////////////////////////////
@@ -469,9 +357,7 @@ variegatus. Data were obtained from GBIF.</figcaption>
 
 ### Defining the area of interest
 
-The next step is to define the extent of the area of interest. Here we
-defined a 100 km buffer around the bounding box containing all presence
-data. The argument for the buffer distance is in meters.
+The next step is to define the extent of the area of interest. Here we defined a 100 km buffer around the bounding box containing all presence data. The argument for the buffer distance is in meters.
 
 ```{js, eval=F}
 ////////////////////////////////////////////
@@ -506,21 +392,10 @@ containing all presence locations.</figcaption>
 
 ### Loading predictor variables
 
-For this example, we selected a combination of climatic predictor
-variables (temperature seasonality, maximum temperature of warmest
-month, minimum temperature of coldest month and annual precipitation)
-obtained from (Hijmans et al. 2005), elevation (Farr et al. 2007) and
-percentage tree cover at 250 m resolution obtained from the Terra MODIS
-Vegetation Continuous Fields (VCF) product. The VCF product is generated
-yearly and produced using monthly composites of Terra MODIS Land Surface
-Reflectance data. We estimated mean percentage tree cover for the period
-of the occurrence data, 2003 to 2020. All predictor variables ultimately
-need to be combined as bands into a single multi-band image. We also
-mask oceans from the multi-band predictor image.
+For this example, we selected a combination of climatic predictor variables (temperature seasonality, maximum temperature of warmest month, minimum temperature of coldest month and annual precipitation) obtained from (Hijmans et al. 2005), elevation (Farr et al. 2007) and percentage tree cover at 250 m resolution obtained from the Terra MODIS
+Vegetation Continuous Fields (VCF) product. The VCF product is generated yearly and produced using monthly composites of Terra MODIS Land Surface Reflectance data. We estimated mean percentage tree cover for the period of the occurrence data, 2003 to 2020. All predictor variables ultimately need to be combined as bands into a single multi-band image. We also mask oceans from the multi-band predictor image.
 
-The calculation of the median percentage tree cover for each pixel
-across the annual MODIS images shows how powerful Google Earth Engine
-can be for raster processing when creating predictor variables.
+The calculation of the median percentage tree cover for each pixel across the annual MODIS images shows how powerful Google Earth Engine can be for raster processing when creating predictor variables.
 
 ```{js, eval=F}
 ////////////////////////////////////////////////
@@ -564,11 +439,7 @@ precipitation; D) Median percentage of tree cover between 2003 and
 2020.</figcaption>
 </figure>
 
-It is important to make sure that there is no significant correlation
-among predictor variables that can cause collinearity. We account for
-this by estimating the Spearman correlation among predictor variable
-values at 5000 random locations. Highly correlated predictor variables
-should not be included in the same model.
+It is important to make sure that there is no significant correlation amongst predictor variables that can cause collinearity. We account for this by estimating the Spearman correlation among predictor variable values at 5000 random locations. Highly correlated predictor variables should not be included in the same model.
 
 ```{js, eval=F}
 // Estimate correlation among predictor variables
@@ -591,24 +462,13 @@ var CorrAll = predictors.bandNames().map(function(i){
 print('Variables correlation matrix',CorrAll);
 ```
 
-> This is a function that requires a lot of memory in GEE as it is
-> working with a large feature collection. Once you have run the
-> correlation code and selected the final set of covariables to use, it
-> is recommended to comment out the print function so the correlations
-> between predictor variables are not run repeatedly.
+> This is a function that requires a lot of memory in GEE as it is working with a large feature collection. Once you have run the correlation code and selected the final set of covariables to use, it is recommended to comment out the print function so the correlations between predictor variables are not run repeatedly.
 
 ### Creating pseudo-absences
 
-In this example, we use presence only data, the most common methodology
-when using data from online databases such as, GBIF. We will generate
-pseudo-absences to fit the model. But first, we need to define the area
-in which random pseudo-absences can be generated.
+In this example, we use presence only data, the most common methodology when using data from online databases such as GBIF. We will generate pseudo-absences to fit the model. But first, we need to define the area in which random pseudo-absences can be generated.
 
-We used a two-step environmental profiling approach to restrict the area
-for the creation of pseudo-absences. We first performed a k-means
-clustering based on Euclidean distance for the presence data and then
-created random pseudo-absences within the pixels classified as being
-more dissimilar to the presence data.
+We used a two-step environmental profiling approach to restrict the area for the creation of pseudo-absences. We first performed a k-means clustering based on Euclidean distance for the presence data and then created random pseudo-absences within the pixels classified as being more dissimilar to the presence data.
 
 ```{js, eval=F}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -665,14 +525,9 @@ alt="Figure 8b. Area to create pseudo-absences." />
 <figcaption aria-hidden="true">Figure 8b. Area to create pseudo-absences.</figcaption>
 </figure>
 
-For this case study, we implement a block repeated split-sample
-cross-validation technique to randomly partition data for model training
-and validation (Roberts et al., 2017; Valavi, Elith, Lahoz-Monfort, &
-Guillera-Arroita, 2019). We then run multiple model iterations with
-random block splits to create training and validation data sets.
+For this case study, we implement a block repeated split-sample cross-validation technique to randomly partition data for model training and validation (Roberts et al., 2017; Valavi, Elith, Lahoz-Monfort, & Guillera-Arroita, 2019). We then run multiple model iterations with random block splits to create training and validation data sets.
 
-The argument `scale` determines the range in m for each block. In this
-case, we are using 200 km.
+The argument `scale` determines the range in m for each block. In this case, we are using 200 km.
 
 ```{js, eval=F}
 // Define a function to create a grid over AOI
@@ -714,11 +569,9 @@ created for cross validation.</figcaption>
 
 ### Model fit, model validation and model predictions
 
-We can now fit the models. There are several functions that need to be
-defined.
+We can now fit the models. There are several functions that need to be defined.
 
-The first function allows us to create random seeds for splitting
-spatial blocks and generating pseudo-absences at each iteration.
+The first function allows us to create random seeds for splitting spatial blocks and generating pseudo-absences at each iteration.
 
 ```{js, eval=F}
 //////////////////////////////////
@@ -735,31 +588,14 @@ function runif(length) {
 
 We need to define a function to fit models.
 
-There are several non-parametric classification algorithms available in
-GEE that can be implemented. These include random forest, support vector
-machine, classification and regression trees, maximum entropy, and
-gradient boosting.
+There are several non-parametric classification algorithms available in [GEE](https://earthengine.google.com/) that can be implemented. These include random forest, support vector machine, classification and regression trees, maximum entropy, and gradient boosting.
 
-We implement a 10 block repeated split-sample cross-validation
-technique. The number of pseudo-absences is balanced with the number of
-presences for the training and validation data sets, as this practice is
-recommended for machine learning classifiers (Evans et al., 2011;
-Barbet-Massin et al. 2012). In this case, we will use random forest. But
-note that in the `SDM` function, we also provide the code to fit
-gradient boosting classifiers. To change the classifier, you need to
-comment out the random forest function call using two forward slashes
-(`//`) and activate the gradient boosting classifier.
+We implement a 10 block repeated split-sample cross-validation technique. The number of pseudo-absences is balanced with the number of presences for the training and validation data sets, as this practice is recommended for machine learning classifiers (Evans et al., 2011; Barbet-Massin et al. 2012). In this case, we will use random forest. But
+note that in the `SDM` function, we also provide the code to fit gradient boosting classifiers. To change the classifier, you need to comment out the random forest function call using two forward slashes (`//`) and activate the gradient boosting classifier.
 
-We use the `setOutputMode()` function to obtain results as `PROBABILITY`
-and as `CLASSIFICATION`. This allows us to obtain a binary output (i.e.,
-predicted presence) to quickly visualize in the interactive map. Later
-we will show how to define a threshold to transform the probability
-output into a binary map.
+We use the `setOutputMode()` function to obtain results as `PROBABILITY` and as `CLASSIFICATION`. This allows us to obtain a binary output (i.e., predicted presence) to quickly visualize in the interactive map. Later we will show how to define a threshold to transform the probability output into a binary map.
 
-At each iteration, the spatial blocks will be randomly split into 70%
-for model fitting and 30% for model validation, respectively.
-Consequently, each of the 10 runs will have a different set of presence
-and pseudo-absence points for model fitting and validation.
+At each iteration, the spatial blocks will be randomly split into 70% for model fitting and 30% for model validation, respectively. Consequently, each of the 10 runs will have a different set of presence and pseudo-absence points for model fitting and validation.
 
 ```{js, eval=F}
 // Define SDM function
@@ -832,9 +668,7 @@ function SDM(x) {
 }
 ```
 
-Now we need to define some parameters before executing the SDM function.
-A variable with the percentage for data split, and a variable with the
-number of iterations to run.
+Now we need to define some parameters before executing the SDM function. A variable with the percentage for data split, and a variable with the number of iterations to run.
 
 ```{js, eval=F}
 // Define partition for training and testing data
@@ -844,11 +678,7 @@ var split = 0.70;  // // The proportion of the blocks used to select training da
 var numiter = 10;
 ```
 
-We can now map the model function. Instead of generating random numbers,
-we will manually set 10 random numbers for reproducibility of results.
-The length of the list of random seeds determines the number of
-iterations of model fitting and validation to run, with each iteration
-having a different set of presence and pseudo-absence points.
+We can now map the model function. Instead of generating random numbers, we will manually set 10 random numbers for reproducibility of results. The length of the list of random seeds determines the number of iterations of model fitting and validation to run, with each iteration having a different set of presence and pseudo-absence points.
 
 ```{js, eval=F}
 // Fit SDM 
@@ -863,8 +693,7 @@ var results = results.flatten();
 //print(results); //Activate this line to visualize all elements
 ```
 
-Now we can extract the model predictions and display them on the maps.
-Note that we will also create some legends for each map.
+Now we can extract the model predictions and display them on the maps. Note that we will also create some legends for each map.
 
 ```{js, eval=F}
 ///////////////////////////////////////////////////////////////////
@@ -979,27 +808,15 @@ right.add(legend2);
 <figure>
 <img src="./Figures/Fig10.png"
 alt="Figure 10. Visualization of predicted habitat suitability and potential distribution of Bradypus variegatus." />
-<figcaption aria-hidden="true">Figure 10. Visualization of predicted
-habitat suitability and potential distribution of <em>Bradypus
+<figcaption aria-hidden="true">Figure 10. Visualization of predicted habitat suitability and potential distribution of <em>Bradypus
 variegatus</em>.</figcaption>
 </figure>
 
-> It is important to understand that GEE does a resampling on the fly
-> for displaying maps. The resolution of the model output will change
-> with the zoom level. To set the visualization at the resolution of the
-> analysis defined with the grain size, you need to specify the
-> resolution of the image using the function `reproject()`.
+> It is important to understand that GEE does a resampling on the fly for displaying maps. The resolution of the model output will change with the zoom level. To set the visualization at the resolution of the analysis defined with the grain size, you need to specify the resolution of the image using the function `reproject()`.
 
-In the next section, we will calculate the Area Under the Curve of the
-Receiver Operator Characteristic (AUC-ROC)(Fielding and Bell, 1997) and
-the Area Under the Precision-Recall Curve (AUC-PR; Sofaer, Hoeting, &
-Jarnevich, 2019) for each run using the validation data sets. We will
-then calculate the mean AUC-ROC and AUC-PR for the **n** iterations.
+In the next section, we will calculate the Area Under the Curve of the Receiver Operator Characteristic (AUC-ROC)(Fielding and Bell, 1997) and the Area Under the Precision-Recall Curve (AUC-PR; Sofaer, Hoeting, & Jarnevich, 2019) for each run using the validation data sets. We will then calculate the mean AUC-ROC and AUC-PR for the **n** iterations.
 
-It is important to check that you have a sufficient number of points for
-model validation at each run. Because the final number of points depends
-on the random split of spatial blocks, you want to make sure there are
-enough presence and pseudo-absence points for model validation.
+It is important to check that you have a sufficient number of points for model validation at each run. Because the final number of points depends on the random split of spatial blocks, you want to make sure there are enough presence and pseudo-absence points for model validation.
 
 ```{js, eval=F}
 /////////////////////////////////////
@@ -1156,12 +973,7 @@ Accuracy assessment results are:
 </tbody>
 </table>
 
-In the next section we will extract sensitivity (correct predictions of
-the occurrence) and specificity (correct predictions of the absence;
-Fielding & Bell, 1997). These metrics require defining a threshold. For
-each iteration, we use the threshold that maximizes the sum of
-sensitivity and specificity. This threshold has been shown to perform
-well with presence-only data (Liu, Newell, & White, 2016).
+In the next section we will extract sensitivity (correct predictions of the occurrence) and specificity (correct predictions of the absence; Fielding & Bell, 1997). These metrics require defining a threshold. For each iteration, we use the threshold that maximizes the sum of sensitivity and specificity. This threshold has been shown to perform well with presence-only data (Liu, Newell, & White, 2016).
 
 ```{js, eval=F}
 // Function to extract other metrics
@@ -1248,13 +1060,8 @@ print('Mean threshold:', MeanThresh);
 </tbody>
 </table>
 
-Finally, we can create a binary potential distribution map using the
-mean threshold from the 10 model iterations.This operation is more
-computationally demanding and is likely to give a memory limit error if
-trying to add the resulting binary image directly to the interactive
-map. If memory limits are reached, it is then necessary to use the batch
-mode on GEE, directly exporting the output to Google Drive or Google
-Cloud Storage.
+Finally, we can create a binary potential distribution map using the mean threshold from the 10 model iterations. This operation is more computationally demanding and is likely to give a memory limit error if trying to add the resulting binary image directly to the interactive map. If memory limits are reached, it is then necessary to use the batch
+mode on [GEE](https://earthengine.google.com/), directly exporting the output to Google Drive or Google Cloud Storage.
 
 ```{js, eval=F}
 ////////////////////////////////////////////////////////////////////////////////
@@ -1277,19 +1084,12 @@ to then display it on a third party software.
 <figure>
 <img src="./Figures/Fig11.png"
 alt="Figure 11. Potential distribution of Bradypus variegatus calculated using a custom threshold. The final map was exported to Google Drive and displayed using QGIS." />
-<figcaption aria-hidden="true">Figure 11. Potential distribution of
-<em>Bradypus variegatus</em> calculated using a custom threshold. The
-final map was exported to Google Drive and displayed using
-QGIS.</figcaption>
+<figcaption aria-hidden="true">Figure 11. Potential distribution of <em>Bradypus variegatus</em> calculated using a custom threshold. The final map was exported to Google Drive and displayed using QGIS.</figcaption>
 </figure>
 
 ### Exporting results
 
-Here, we present code to export the final probability maps as well as
-the accuracy metrics, training and validation data sets used for each
-model. Note that there are other options to export data in GEE (see the
-<https://developers.google.com/earth-engine/guides/exporting/>(user
-guide) for other ways to export data).
+Here, we present code to export the final probability maps as well as the accuracy metrics, training and validation data sets used for each model. Note that there are other options to export data in GEE (see the <https://developers.google.com/earth-engine/guides/exporting/>(user guide) for other ways to export data).
 
 ```{js, eval=F}
 //////////////////////////////////////////////////////
@@ -1378,134 +1178,71 @@ Export.table.toDrive({
 
 #### References
 
-Araújo, M. B., Anderson, R. P., Barbosa, A. M., Beale, C. M., Dormann,
-C. F., Early, R., Garcia, R. A., Guisan, A., Maioran, L., Naimi, B.,
-O’Hara, R. B., Zimmermann, N. E., & Rahbek, C. (2019). Standards for
-distribution models in biodiversity assessments. Science Advances, 5(1),
-1–12. <https://doi.org/10.1126/sciadv.aat4858>
+Araújo, M. B., Anderson, R. P., Barbosa, A. M., Beale, C. M., Dormann, C. F., Early, R., Garcia, R. A., Guisan, A., Maioran, L., Naimi, B., O’Hara, R. B., Zimmermann, N. E., & Rahbek, C. (2019). Standards for distribution models in biodiversity assessments. Science Advances, 5(1), 1–12. <https://doi.org/10.1126/sciadv.aat4858>
 
-Barbet-Massin, M., Jiguet, F., Albert, C. H., & Thuiller, W. (2012).
-Selecting pseudo-absences for species distribution models: How, where
-and how many? Methods in Ecology and Evolution, 3(2), 327–338.
-<https://doi.org/10.1111/j.2041-210X.2011.00172.x>
+Barbet-Massin, M., Jiguet, F., Albert, C. H., & Thuiller, W. (2012). Selecting pseudo-absences for species distribution models: How, where and how many? Methods in Ecology and Evolution, 3(2), 327–338. <https://doi.org/10.1111/j.2041-210X.2011.00172.x>
 
-Chefaoui, R. M., & Lobo, J. M. (2008). Assessing the effects of
-pseudo-absences on predictive distribution model performance. Ecological
-Modelling, 210(4), 478–486.
+Chefaoui, R. M., & Lobo, J. M. (2008). Assessing the effects of pseudo-absences on predictive distribution model performance. Ecological Modelling, 210(4), 478–486.
 <https://doi.org/10.1016/j.ecolmodel.2007.08.010>
 
-Evans, J. S., Murphy, M. A., Holden, Z. A., & Cushman, S. A. (2011).
-Modeling Species Distribution and Change Using Random Forest. In C. A.
-Drew, Y. F. Wiersma, & F. Huettmann (Eds.), Predictive Species and
-Habitat Modeling in Landscape Ecology: Concepts and Applications
-(pp. 139–159). New York, NY: Springer New York.
+Evans, J. S., Murphy, M. A., Holden, Z. A., & Cushman, S. A. (2011). Modeling Species Distribution and Change Using Random Forest. In C. A. Drew, Y. F. Wiersma, & F. Huettmann (Eds.), Predictive Species and Habitat Modeling in Landscape Ecology: Concepts and Applications (pp. 139–159). New York, NY: Springer New York.
 <https://doi.org/10.1007/978-1-4419-7390-0_8>
 
-Farr, T. G., Rosen, P. A., Caro, E., Crippen, R., Duren, R., Hensley,
-S., Kobrick, M., Paller, M., Rodriguez, E., Roth, L., Seal, D., Shaffer,
-S., Shimada, J., Umland, J., Werner, M., Oskin, M., Burbank, D.,
-&Alsdorf, D. (2007). The shuttle radar topography mission. Reviews of
-Geophysics, 45(2), RG2004. <https://doi.org/10.1029/2005RG000183>
+Farr, T. G., Rosen, P. A., Caro, E., Crippen, R., Duren, R., Hensley, S., Kobrick, M., Paller, M., Rodriguez, E., Roth, L., Seal, D., Shaffer, S., Shimada, J., Umland, J., Werner, M., Oskin, M., Burbank, D., & Alsdorf, D. (2007). The shuttle radar topography mission. Reviews of Geophysics, 45(2), RG2004. <https://doi.org/10.1029/2005RG000183>
 
-Fielding, A. H., & Bell, J. F. (1997). A review of methods for the
-assessment of prediction errors in conservation presence/absence models.
-Environmental Conservation, 24(1), 38–49.
-<https://doi.org/10.1017/S0376892997000088>
+Fielding, A. H., & Bell, J. F. (1997). A review of methods for the assessment of prediction errors in conservation presence/absence models. Environmental Conservation, 24(1), 38–49. <https://doi.org/10.1017/S0376892997000088>
 
-Guisan, A., Thuiller, W., & Zimmermann, N. (2017). Habitat Suitability
-and Distribution Models: With Applications in R. Cambridge, UK.:
-Cambridge University Press. <https://doi.org/doi:10.1017/9781139028271>
+Guisan, A., Thuiller, W., & Zimmermann, N. (2017). Habitat Suitability and Distribution Models: With Applications in R. Cambridge, UK.: Cambridge University Press. <https://doi.org/doi:10.1017/9781139028271>
 
-Hijmans, R.J., Cameron, S.E., Parra, J.L., Jones, P.G., & Jarvis, A.
-(2005). Very High Resolution Interpolated Climate Surfaces for Global
-Land Areas. International Journal of Climatology 25: 1965-1978.
+Hijmans, R.J., Cameron, S.E., Parra, J.L., Jones, P.G., & Jarvis, A. (2005). Very High Resolution Interpolated Climate Surfaces for Global Land Areas. International Journal of Climatology 25: 1965-1978.
 
-Hijmans, R. J., Phillips, S., Leathwick, J., & Elith, J. (2017). dismo:
-Species distribution modeling. R package version 1.1-4.
+Hijmans, R. J., Phillips, S., Leathwick, J., & Elith, J. (2017). dismo: Species distribution modeling. R package version 1.1-4.
 
-Kindt, R. (2018). Ensemble species distribution modelling with
-transformed suitability values. Environmental Modelling and Software,
-100, 136–145. <https://doi.org/10.1016/j.envsoft.2017.11.009>
+Kindt, R. (2018). Ensemble species distribution modelling with transformed suitability values. Environmental Modelling and Software, 100, 136–145. <https://doi.org/10.1016/j.envsoft.2017.11.009>
 
-Leroy, B., Delsol, R., Hugueny, B., Meynard, C. N., Barhoumi, C.,
-Barbet-Massin, M., & Bellard, C. (2018). Without quality
-presence–absence data, discrimination metrics such as TSS can be
-misleading measures of model performance. Journal of Biogeography,
+Leroy, B., Delsol, R., Hugueny, B., Meynard, C. N., Barhoumi, C., Barbet-Massin, M., & Bellard, C. (2018). Without quality presence–absence data, discrimination metrics such as TSS can be misleading measures of model performance. Journal of Biogeography,
 45(9), 1994–2002. <https://doi.org/10.1111/jbi.13402>
 
-Liu, C., Newell, G., & White, M. (2016). On the selection of thresholds
-for predicting species occurrence with presence-only data. Ecology and
-Evolution, 6(1), 337–348. <https://doi.org/10.1002/ece3.1878>
+Liu, C., Newell, G., & White, M. (2016). On the selection of thresholds for predicting species occurrence with presence-only data. Ecology and Evolution, 6(1), 337–348. <https://doi.org/10.1002/ece3.1878>
 
-Marmion, M., Parviainen, M., Luoto, M., Heikkinen, R. K., & Thuiller, W.
-(2009). Evaluation of consensus methods in predictive species
-distribution modelling. Diversity and Distributions, 15(1), 59–69.
-<https://doi.org/10.1111/j.1472-4642.2008.00491.x>
+Marmion, M., Parviainen, M., Luoto, M., Heikkinen, R. K., & Thuiller, W. (2009). Evaluation of consensus methods in predictive species distribution modelling. Diversity and Distributions, 15(1), 59–69. <https://doi.org/10.1111/j.1472-4642.2008.00491.x>
 
-Mittermeier, R. A., Rylands, A. B., & Wilson, D. E., (Eds.). (2013).
-Handbook of the Mammals of the World: Volume 3, Primates. Barcelona,
-Spain.: Linx Ediciones.
+Mittermeier, R. A., Rylands, A. B., & Wilson, D. E., (Eds.). (2013). Handbook of the Mammals of the World: Volume 3, Primates. Barcelona, Spain.: Linx Ediciones.
 
-Phillips, S. J., Anderson, R. P., Dudík, M., Schapire, R. E., & Blair,
-M. E. (2017). Opening the black box: an open-source release of Maxent.
-Ecography, 40(7), 887–893. <https://doi.org/10.1111/ecog.03049>
+Phillips, S. J., Anderson, R. P., Dudík, M., Schapire, R. E., & Blair, M. E. (2017). Opening the black box: an open-source release of Maxent. Ecography, 40(7), 887–893. <https://doi.org/10.1111/ecog.03049>
 
-Phillips, S. J., Anderson, R. P., & Schapire, R. E. (2006). Maximum
-entropy modeling of species geographic distributions. Ecological
-Modelling, 190(3–4), 231–259.
+Phillips, S. J., Anderson, R. P., & Schapire, R. E. (2006). Maximum entropy modeling of species geographic distributions. Ecological Modelling, 190(3–4), 231–259.
 <https://doi.org/10.1016/j.ecolmodel.2005.03.026>
 
-Phillips, S. J., Dudík, M., Elith, J., Graham, C. H., Lehmann, A.,
-Leathwick, J., & Ferrier, S. (2009). Sample selection bias and
-presence-only distribution models: Implications for background and
-pseudo-absence data. Ecological Applications, 19(1), 181–197.
-<https://doi.org/10.1890/07-2153.1>
+Phillips, S. J., Dudík, M., Elith, J., Graham, C. H., Lehmann, A., Leathwick, J., & Ferrier, S. (2009). Sample selection bias and presence-only distribution models: Implications for background and pseudo-absence data. Ecological Applications, 19(1), 181–197. <https://doi.org/10.1890/07-2153.1>
 
-Roberts, D. R., Bahn, V., Ciuti, S., Boyce, M. S., Elith, J.,
-Guillera-Arroita, G., Hauenstein, S., Lahoz-Monford, J. J., Schröder,
-B., Thuiller, W., Warton, D. I., Wintle, B. A., Hartig, F., & Dormann,
-C. F. (2017). Cross-validation strategies for data with temporal,
-spatial, hierarchical, or phylogenetic structure. Ecography, 40(8),
+Roberts, D. R., Bahn, V., Ciuti, S., Boyce, M. S., Elith, J., Guillera-Arroita, G., Hauenstein, S., Lahoz-Monford, J. J., Schröder, B., Thuiller, W., Warton, D. I., Wintle, B. A., Hartig, F., & Dormann, C. F. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography, 40(8),
 913–929. <https://doi.org/10.1111/ecog.02881>
 
-Senay, S. D., Worner, S. P., & Ikeda, T. (2013). Novel Three-Step
-Pseudo-Absence Selection Technique for Improved Species Distribution
-Modelling. PLoS ONE, 8(8).
+Senay, S. D., Worner, S. P., & Ikeda, T. (2013). Novel Three-Step Pseudo-Absence Selection Technique for Improved Species Distribution Modelling. PLoS ONE, 8(8).
 <https://doi.org/10.1371/journal.pone.0071218>
 
-Sillero, N., Arenas-Castro, S., Enriquez‐Urzelai, U., Vale, C. G.,
-Sousa-Guedes, D., Martínez-Freiría, F., … Barbosa, A. M. (2021). Want to
-model a species niche? A step-by-step guideline on correlative
-ecological niche modelling. Ecological Modelling, 456.
-<https://doi.org/10.1016/j.ecolmodel.2021.109671>
+Sillero, N., Arenas-Castro, S., Enriquez‐Urzelai, U., Vale, C. G., Sousa-Guedes, D., Martínez-Freiría, F., … Barbosa, A. M. (2021). Want to model a species niche? A step-by-step guideline on correlative ecological niche modelling. Ecological Modelling, 456. <https://doi.org/10.1016/j.ecolmodel.2021.109671>
 
-Sofaer, H. R., Hoeting, J. A., & Jarnevich, C. S. (2019). The area under
-the precision-recall curve as a performance metric for rare binary
-events. Methods in Ecology and Evolution, 10(4), 565–577.
-<https://doi.org/10.1111/2041-210X.13140>
+Sofaer, H. R., Hoeting, J. A., & Jarnevich, C. S. (2019). The area under the precision-recall curve as a performance metric for rare binary events. Methods in Ecology and Evolution, 10(4), 565–577. <https://doi.org/10.1111/2041-210X.13140>
 
-Valavi, R., Elith, J., Lahoz-Monfort, J. J., & Guillera-Arroita, G.
-(2019). blockCV: An r package for generating spatially or
-environmentally separated folds for k-fold cross-validation of species
-distribution models. Methods in Ecology and Evolution, 10(2), 225–232.
-<https://doi.org/10.1111/2041-210X.13107>
+Valavi, R., Elith, J., Lahoz-Monfort, J. J., & Guillera-Arroita, G. (2019). blockCV: An r package for generating spatially or environmentally separated folds for k-fold cross-validation of species distribution models. Methods in Ecology and Evolution, 10(2), 225–232. <https://doi.org/10.1111/2041-210X.13107>
 
 ---
 
 ### Assignment 4
 
-The idea of this assignment is that you can practice modifying the general workflow we presented here for implementing species distribution models in GEE. 
+The goal of this assignment is to practice modifying the general workflow we presented for implementing species distribution models in [GEE](https://earthengine.google.com/). 
 
-Activity 1  [Moderate]
-Modify the general workflow presented in the video to fit an SDM using presence only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/Perissodactyla`
-Note that this includes other species, so you need to filter the data to retain only the Plains zebra data. Note you may also need to do some extra filters for data cleaning. 
+**Activity 1  [Moderate]**
+Modify the general workflow presented to fit a SDM using presence-only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/Perissodactyla`. Note that this includes other species, so you need to filter the data to retain only the Plains zebra data.
 
 The model needs to include the following:
 - Grain size: 10000 m
 
 - Study area: decide whether you want to use the default settings or define your own.
 
-- Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/061/MOD13A2) and human modification index (CSP/HM/GlobalHumanModification)
+- Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/061/MOD13A2), and human modification index (CSP/HM/GlobalHumanModification)
 
 - Create pseudo-absences randomly within the continent of Africa boundary (option 1 from the tutorial)
 
@@ -1517,8 +1254,7 @@ The model needs to include the following:
 
 Solutions code by clicking [here](https://code.earthengine.google.com/5fb63d2728e910270784f30314295dd0)
 
-Activity 2 [Advanced]
-
+**Activity 2 [Advanced]**
 Modify the previous model to:
 - Use the country of Kenya as your area of interest (Make sure you extract the geometry)
 
