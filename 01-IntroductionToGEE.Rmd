@@ -260,7 +260,7 @@ Now that we have a better understanding of the GEE layout, it is time to start c
 
 In this first section we will learn the basics of JavaScript coding. There are certain code statements that are proper of GEE. We will later dive into those specifics.
 
-The code for this section can be found [here](https://code.earthengine.google.com/2d5cd3a88c5cf465313f272611056afb)
+The code for this section can be found [here](https://code.earthengine.google.com/cd2c1bea41377d7a8ce03f766cb99401)
 
 
 #### The basics
@@ -603,5 +603,7 @@ print('Result:', multiplyby2(4));
 ```
 
 6. Save the script for this assignment.
+
+Solutions code by clicking [here](https://code.earthengine.google.com/64ac106030fbd2dcbca8fb887fabba0b)
 
 ---
