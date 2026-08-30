@@ -2,6 +2,8 @@
 
 This third section is intended for you to practice what you have learned and then connect it to [R](https://cran.r-project.org/), so we start to bring back things we have learned in the past.
 
+The code on this section can be found [here](https://code.earthengine.google.com/3e3492f6f7aae28ef22368bcf67fcc05)
+
 
 ### Export an image from GEE
 
