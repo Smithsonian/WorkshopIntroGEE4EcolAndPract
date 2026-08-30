@@ -6,7 +6,7 @@ This is a guide for modeling species distributions and habitat suitability in [G
 
 We first cover the basics of using matchine learning to create a simple species distribution model. We then cover more specifics of the SDM workflow for importing data and setting the main arguments used in different functions, such as, grid size and the area of interest. We then expand on different modelling workflows using three different case studies to demonstrate how to adapt the code workflow for different goals.
 
-The code found below can also be accessed through the [GEE](https://earthengine.google.com/) repository for
+The code of the original paper can be be accessed through the [GEE](https://earthengine.google.com/) repository for
 this study:
 <https://code.earthengine.google.com/?accept_repo=users/ramirocrego84/SDM_Manuscript>
 
@@ -205,6 +205,8 @@ Map.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
 
 ### Case Study 1: A simple example to understand how matchine learning works
 
+The code to run this case study can be found [here](https://code.earthengine.google.com/) 
+
 Let's start running a very simple SDM using a Random Forest algorithm. To do this, we will use a dataset on Plains zebra (**Equus quagga**) observations downloaded from [GBIF](https://www.gbif.org/). 
 
 First, we will define a polygon around the African continent that will serve as the area of interest (AOI). You can use the drawing tools to do this. It does not have to be accurate for this simple example.
@@ -228,6 +230,19 @@ Next, we need to define a grain size to work with, the spatial resolution of the
 // Define spatial resolution to work with (m)
 var GrainSize = 10000;
 
+```
+
+Next, we want to remove all points that lay within the same raster cell at a given grain size.
+
+```{js, eval=F}
+function RemoveDuplicates(data){
+  var randomraster = ee.Image.random().reproject('EPSG:4326', null, GrainSize);
+  var randpointvals = randomraster.sampleRegions({collection:ee.FeatureCollection(data), scale: 10, geometries: true});
+  return randpointvals.distinct('random');
+}
+
+var Data = RemoveDuplicates(Data);
+print('Final data size:', Data.size());
 ```
 
 Next, we will load a set of predictor variables. We will use an elevation model and the 19 bioclimatic variables available on [GEE](https://earthengine.google.com/). We will display annual mean temperature as an example.
@@ -302,6 +317,8 @@ alt="Figure 4. Estimated distribution of Plains zebra vs known distribution." />
 ---
 
 ### Case Study 2: Modeling *Bradypus variegatus* habitat suitability and predicted distribution using presence-only data
+
+The code to run this case study can be found [here](https://code.earthengine.google.com/2347905e2f31d47fd985fbf9c9bd75b7) 
 
 To demonstrate the basic code to conduct SDMs in [Google Earth Engine](https://earthengine.google.com/), we will use *Bradypus variegatus* as a case study. This species has been widely used to present other SDM software and [R](https://cran.r-project.org/) packages (Hijmans et al., 2017; Kindt, 2018; Phillips et al., 2017, 2006) and allows us to compare [GEE](https://earthengine.google.com/) outputs with other tools. We obtained occurrence data from GBIF (GBIF.org 20 January 2021 GBIF Occurrence Download <https://doi.org/10.15468/dl.jxcv7e>). We filtered data to the period from 2000 to 2020, retaining only georeferenced records with a coordinate uncertainty &lt; 250 m. We further cleaned the data set by removing all locations that fall on top of buildings or water bodies assuming they had incorrect coordinates.
 
@@ -1234,23 +1251,39 @@ Valavi, R., Elith, J., Lahoz-Monfort, J. J., & Guillera-Arroita, G. (2019). bloc
 
 The goal of this assignment is to practice modifying the general workflow we presented for implementing species distribution models in [GEE](https://earthengine.google.com/). 
 
-**Activity 1  [Moderate]**
-Modify the general workflow presented to fit a SDM using presence-only data for the Plains zebra (**Equus quagga**). The data is available at the following asset:  `users/ramirocrego84/Perissodactyla`. Note that this includes other species, so you need to filter the data to retain only the Plains zebra data.
+**Activity 1  [Easy to moderate]**
+Modify the general workflow presented to fit a simple SDM using presence-only data, similar to the model we saw for Plain zebras. 
+
+You have the option to either, download data from GBIF, use your own data, or use an species available at the following asset:  `users/ramirocrego84/Perissodactyla`. Note that this asset includes many species in the order Perissodactila, so you need to filter the data to retain only an species of interest.
+
+The species available are: 
+'Malayan tapir': "Acrocodia indica",   
+'White rhinoceros': "Ceratotherium simum",  
+'Black rhinoceros': "Diceros bicornis",     
+'Donkey': "Equus asinus",    
+'Horse': "Equus caballus",       
+'Wild horse': "Equus ferus",      
+'Grevy`s zebra': "Equus grevyi",         
+'Hartmann`s mountain zebra': "Equus hartmannae",    
+'Onager': "Equus hemionus",    
+'Indian wild ass': "Equus khur",      
+'Kiang': "Equus kiang",          
+'Przewalski`s horse': "Equus przewalskii",   
+'Plains zebra': "Equus quagga",   
+'Mountain zebra': "Equus zebra",        
+'Indian rhinoceros': "Rhinoceros unicornis", 
+'Baird`s tapir': "Tapirella bairdii",
+'Mountain tapir': "Tapirus pinchaque",   
+'South American tapir': "Tapirus terrestris"
 
 The model needs to include the following:
-- Grain size: 10000 m
+- Grain size: 5000 m
 
-- Study area: decide whether you want to use the default settings or define your own.
+- Study area: decide whether you want to use the default settings or define your own. This will depend on the presence data you are using.
 
-- Predictor variables: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS for the last 10 years (MODIS/061/MOD13A2), and human modification index (CSP/HM/GlobalHumanModification)
+- Predictor variables: You will need to use predictor variables that are ecological meaningful to the species you are working with. Some options could be: elevation, slope, temperature seasonality, max temperature of warmest month, min temperature of coldest month, mean annual precipitation, mean NDVI from MODIS (MODIS/061/MOD13A2), and human modification index (CSP/HM/GlobalHumanModification)
 
-- Create pseudo-absences randomly within the continent of Africa boundary (option 1 from the tutorial)
-
-- Define your own block size
-
-- Classifier: random forest
-
-- Iterations: 3
+- Create pseudo-absences randomly within the area of interest (option 1 from the tutorial)
 
 Solutions code by clicking [here](https://code.earthengine.google.com/5fb63d2728e910270784f30314295dd0)
 
