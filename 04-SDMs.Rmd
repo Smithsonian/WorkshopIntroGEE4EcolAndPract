@@ -10,6 +10,8 @@ The code of the original paper can be be accessed through the [GEE](https://eart
 this study:
 <https://code.earthengine.google.com/?accept_repo=users/ramirocrego84/SDM_Manuscript>
 
+You can download the power point associated with this module from [here](https://drive.google.com/file/d/1tXkwH9qIuF_xMrp_0e1wvesALK5YlGFP/view?usp=sharing)
+
 ### Importing species location data as an asset
 
 Datasets need to be uploaded as assets in [Google Earth Engine](https://earthengine.google.com/). The easiest way to do this is by creating a csv file with spatial coordinates and any other desired attribute information. Note that you can also upload an ESRI Shapefile with the species location data.
@@ -1257,6 +1259,7 @@ Modify the general workflow presented to fit a simple SDM using presence-only da
 You have the option to either, download data from GBIF, use your own data, or use an species available at the following asset:  `users/ramirocrego84/Perissodactyla`. Note that this asset includes many species in the order Perissodactila, so you need to filter the data to retain only an species of interest.
 
 The species available are: 
+
 'Malayan tapir': "Acrocodia indica",   
 'White rhinoceros': "Ceratotherium simum",  
 'Black rhinoceros': "Diceros bicornis",     
@@ -1275,6 +1278,7 @@ The species available are:
 'Baird`s tapir': "Tapirella bairdii",
 'Mountain tapir': "Tapirus pinchaque",   
 'South American tapir': "Tapirus terrestris"
+
 
 The model needs to include the following:
 - Grain size: 5000 m
