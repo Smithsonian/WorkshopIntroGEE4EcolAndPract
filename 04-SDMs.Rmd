@@ -207,7 +207,7 @@ Map.addLayer(AreaForPA, {},'Area to create pseudo-absences', 0);
 
 ### Case Study 1: A simple example to understand how matchine learning works
 
-The code to run this case study can be found [here](https://code.earthengine.google.com/) 
+The code to run this case study can be found [here](https://code.earthengine.google.com/c715efb63af0422065036c34bbf4d649) 
 
 Let's start running a very simple SDM using a Random Forest algorithm. To do this, we will use a dataset on Plains zebra (**Equus quagga**) observations downloaded from [GBIF](https://www.gbif.org/). 
 
